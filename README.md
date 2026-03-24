@@ -145,6 +145,34 @@ test/functional/feature_block.py
 test/lint/lint-all.sh
 ```
 
+Compatible Wallets
+------------------
+
+Any wallet that supports Bitcoin/Litecoin-compatible networks can be used with ShardCoin by configuring these parameters:
+
+| Parameter | Value |
+|-----------|-------|
+| Coin | ShardCoin (SHRD) |
+| Algorithm | Scrypt |
+| P2PKH prefix | 63 (addresses start with `S`) |
+| P2SH prefix | 5 |
+| WIF prefix | 191 |
+| Bech32 HRP | `shrd` |
+| BIP32 public | `0x0488B21E` |
+| BIP32 private | `0x0488ADE4` |
+| BIP44 coin type | 1000 |
+| Default port | 7333 |
+| RPC port | 7332 |
+
+**Compatible wallet software:**
+- **Electrum** — add ShardCoin as a custom network (fork Electrum-LTC and change parameters)
+- **Trust Wallet / Coinomi** — support custom coin configurations
+- **Any Bitcoin/Litecoin-compatible hardware wallet** (Ledger, Trezor) — with custom app or coin config
+- **ShardWallet** — our official PWA wallet ([github.com/code2031/ShardWallet](https://github.com/code2031/ShardWallet))
+- **shardcoin-qt** — built-in GUI desktop wallet (included with ShardCoin Core)
+
+For RPC-compatible wallets, point them at `http://127.0.0.1:7332` with your configured `rpcuser`/`rpcpassword`.
+
 Development
 -----------
 
