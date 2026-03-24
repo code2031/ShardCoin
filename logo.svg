@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C5CE7"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5B3DC7"/>
+      <stop offset="100%" stop-color="#7C5CE7"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#A78BFA" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#7C5CE7" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#16162A"/>
+
+  <!-- Subtle glow behind the icon -->
+  <ellipse cx="256" cy="256" rx="140" ry="140" fill="url(#glow)"/>
+
+  <!-- Database Shard 1 (top) - shifted left -->
+  <g transform="translate(-18, 0)">
+    <!-- Top ellipse -->
+    <ellipse cx="256" cy="135" rx="80" ry="22" fill="url(#g1)" opacity="0.95"/>
+    <!-- Body -->
+    <path d="M176,135 L176,175 Q176,197 256,197 Q336,197 336,175 L336,135 Q336,157 256,157 Q176,157 176,135 Z" fill="url(#g2)" opacity="0.9"/>
+    <!-- Bottom ellipse -->
+    <ellipse cx="256" cy="175" rx="80" ry="22" fill="url(#g1)" opacity="0.7"/>
+  </g>
+
+  <!-- Database Shard 2 (middle) - centered -->
+  <g transform="translate(0, 0)">
+    <ellipse cx="256" cy="225" rx="80" ry="22" fill="url(#g1)" opacity="0.95"/>
+    <path d="M176,225 L176,265 Q176,287 256,287 Q336,287 336,265 L336,225 Q336,247 256,247 Q176,247 176,225 Z" fill="url(#g2)" opacity="0.9"/>
+    <ellipse cx="256" cy="265" rx="80" ry="22" fill="url(#g1)" opacity="0.7"/>
+  </g>
+
+  <!-- Database Shard 3 (bottom) - shifted right -->
+  <g transform="translate(18, 0)">
+    <ellipse cx="256" cy="315" rx="80" ry="22" fill="url(#g1)" opacity="0.95"/>
+    <path d="M176,315 L176,355 Q176,377 256,377 Q336,377 336,355 L336,315 Q336,337 256,337 Q176,337 176,315 Z" fill="url(#g2)" opacity="0.9"/>
+    <ellipse cx="256" cy="355" rx="80" ry="22" fill="url(#g1)" opacity="0.7"/>
+  </g>
+
+  <!-- Connection lines between shards (data flow / S-curve) -->
+  <!-- Shard 1 to 2 -->
+  <path d="M280,190 Q310,207 256,225" fill="none" stroke="#A78BFA" stroke-width="2.5" stroke-dasharray="4,4" opacity="0.6"/>
+  <!-- Shard 2 to 3 -->
+  <path d="M232,280 Q202,297 274,315" fill="none" stroke="#A78BFA" stroke-width="2.5" stroke-dasharray="4,4" opacity="0.6"/>
+
+  <!-- Data flow dots -->
+  <circle cx="268" cy="198" r="3" fill="#A78BFA" opacity="0.8"/>
+  <circle cx="260" cy="210" r="2.5" fill="#A78BFA" opacity="0.6"/>
+  <circle cx="244" cy="288" r="3" fill="#A78BFA" opacity="0.8"/>
+  <circle cx="252" cy="300" r="2.5" fill="#A78BFA" opacity="0.6"/>
+
+  <!-- Subtle outer ring -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#7C5CE7" stroke-width="1" opacity="0.15"/>
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#7C5CE7" stroke-width="0.5" opacity="0.08"/>
+</svg>
