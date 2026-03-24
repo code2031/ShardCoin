@@ -25,7 +25,10 @@ make -j$(nproc)
 ```
 
 **macOS dependencies**: `brew install automake libtool boost pkg-config libevent`
-**Ubuntu dependencies**: `apt install build-essential libtool autotools-dev automake pkg-config bsdmainutils python3 libevent-dev libboost-dev libboost-system-dev libboost-filesystem-dev libboost-test-dev libsqlite3-dev`
+**Ubuntu dependencies**: `apt install build-essential libtool autotools-dev automake pkg-config bsdmainutils python3 libevent-dev libboost-dev libboost-system-dev libboost-filesystem-dev libboost-test-dev libsqlite3-dev libssl-dev libfmt-dev libboost-thread-dev`
+
+**With wallet support** (requires BDB): `apt install libdb-dev libdb++-dev` and add `--with-incompatible-bdb` to configure.
+**With Qt GUI**: `apt install qtbase5-dev qttools5-dev qttools5-dev-tools libqrencode-dev`
 
 ## Testing
 
@@ -141,6 +144,15 @@ Note: Source filenames retain `bitcoin` prefix from upstream — only binary out
 - All BIPs + Taproot + MWEB activated from block 0
 - Empty checkpoints map guarded with `.empty()` check in `chainparams.h`
 - No DNS seeds or checkpoints (fresh chain)
+
+## Third-Party Wallet Integration
+
+When configuring external wallets for ShardCoin, these are the network parameters:
+- P2PKH prefix: 63, P2SH prefix: 5, WIF prefix: 191
+- Bech32 HRP: `shrd`, BIP44 coin type: 1000
+- BIP32 public: `0x0488B21E`, BIP32 private: `0x0488ADE4`
+
+Official PWA wallet: [github.com/code2031/ShardWallet](https://github.com/code2031/ShardWallet)
 
 ## Code Formatting
 
