@@ -9,10 +9,19 @@ src/litecoin-gui
 src/litecoin-node
 src/litecoin-tx
 src/litecoin-wallet
+src/shardcoin
+src/shardcoind
+src/shardcoin-cli
+src/shardcoin-gui
+src/shardcoin-node
+src/shardcoin-tx
+src/shardcoin-wallet
 src/test/fuzz/*
 !src/test/fuzz/*.*
 src/test/test_litecoin
+src/test/test_shardcoin
 src/qt/test/test_litecoin-qt
+src/qt/test/test_shardcoin-qt
 
 # autoreconf
 Makefile.in
@@ -95,7 +104,9 @@ src/qt/bitcoin-qt.includes
 Makefile
 !depends/Makefile
 src/qt/litecoin-qt
+src/qt/shardcoin-qt
 Litecoin-Qt.app
+ShardCoin-Qt.app
 background.tiff*
 
 # Qt Creator
