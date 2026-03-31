@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShardCoin — AI-Native Cryptocurrency</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --border: #1e1e2e;
+            --text: #e0e0e6;
+            --muted: #8888a0;
+            --accent: #6c5ce7;
+            --accent2: #00cec9;
+            --glow: rgba(108, 92, 231, 0.15);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 80px 20px 60px;
+            background: radial-gradient(ellipse at 50% 0%, var(--glow) 0%, transparent 70%);
+        }
+        .hero img { width: 96px; height: 96px; margin-bottom: 24px; }
+        .hero h1 { font-size: 3rem; font-weight: 700; letter-spacing: -1px; margin-bottom: 8px; }
+        .hero h1 span { color: var(--accent); }
+        .hero .tagline { font-size: 1.25rem; color: var(--muted); max-width: 600px; margin: 0 auto 32px; }
+        .hero .badges { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--surface); border: 1px solid var(--border);
+            padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; color: var(--muted);
+        }
+        .badge strong { color: var(--accent2); }
+
+        /* Sections */
+        .container { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+        section { padding: 60px 0; }
+        section h2 {
+            font-size: 1.75rem; margin-bottom: 32px; text-align: center;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        /* Stats grid */
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        .stat {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 24px; text-align: center;
+        }
+        .stat .value { font-size: 1.5rem; font-weight: 700; color: var(--accent2); }
+        .stat .label { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+
+        /* How it works */
+        .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .step {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 28px;
+        }
+        .step .num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; border-radius: 50%;
+            background: var(--accent); color: white; font-weight: 700; font-size: 0.85rem;
+            margin-bottom: 12px;
+        }
+        .step h3 { font-size: 1.1rem; margin-bottom: 8px; }
+        .step p { color: var(--muted); font-size: 0.9rem; }
+
+        /* Downloads */
+        .downloads { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+        .dl-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 24px;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .dl-card h3 { font-size: 1.1rem; }
+        .dl-card p { color: var(--muted); font-size: 0.85rem; flex: 1; }
+        .dl-card a {
+            display: inline-flex; align-items: center; justify-content: center;
+            background: var(--accent); color: white; text-decoration: none;
+            padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.9rem;
+            transition: opacity 0.2s;
+        }
+        .dl-card a:hover { opacity: 0.85; }
+        .dl-card a.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+
+        /* Code block */
+        .code-block {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 24px; margin-top: 24px;
+            font-family: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', monospace;
+            font-size: 0.85rem; overflow-x: auto; color: var(--muted);
+        }
+        .code-block .comment { color: #555; }
+        .code-block .cmd { color: var(--accent2); }
+
+        /* Network params table */
+        table {
+            width: 100%; border-collapse: collapse;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            overflow: hidden;
+        }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        td { font-family: 'SF Mono', monospace; font-size: 0.85rem; }
+
+        /* Footer */
+        footer {
+            text-align: center; padding: 40px 20px; color: var(--muted);
+            font-size: 0.85rem; border-top: 1px solid var(--border);
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <img src="/logo.png" alt="ShardCoin">
+        <h1><span>Shard</span>Coin</h1>
+        <p class="tagline">The first AI-native cryptocurrency. Every block is proof that artificial intelligence helped secure the network.</p>
+        <div class="badges">
+            <span class="badge">Algorithm: <strong>Scrypt + AI PoW</strong></span>
+            <span class="badge">Supply: <strong>~8.4M SHRD</strong></span>
+            <span class="badge">Block Time: <strong>2.5 min</strong></span>
+            <span class="badge">AI Backend: <strong>Ollama</strong></span>
+        </div>
+    </div>
+
+    <section>
+        <div class="container">
+            <h2>Network Overview</h2>
+            <div class="stats">
+                <div class="stat"><div class="value">5 SHRD</div><div class="label">Block Reward</div></div>
+                <div class="stat"><div class="value">10%</div><div class="label">Decay / 100k Blocks</div></div>
+                <div class="stat"><div class="value">~8.4M</div><div class="label">Max Supply</div></div>
+                <div class="stat"><div class="value">2.5 min</div><div class="label">Block Time</div></div>
+            </div>
+        </div>
+    </section>
+
+    <section style="background: var(--surface);">
+        <div class="container">
+            <h2>How AI Mining Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="num">1</div>
+                    <h3>Challenge</h3>
+                    <p>A deterministic AI prompt is derived from the previous block hash and current height. Every block gets a unique challenge.</p>
+                </div>
+                <div class="step">
+                    <div class="num">2</div>
+                    <h3>Inference</h3>
+                    <p>The miner's local Ollama instance processes the challenge through a language model, generating a unique AI response.</p>
+                </div>
+                <div class="step">
+                    <div class="num">3</div>
+                    <h3>Proof</h3>
+                    <p>The response is hashed and embedded in the coinbase transaction as an OP_RETURN output — a permanent AI proof in the block.</p>
+                </div>
+                <div class="step">
+                    <div class="num">4</div>
+                    <h3>Mine</h3>
+                    <p>Standard Scrypt proof-of-work continues. The AI proof becomes part of the block's identity through the Merkle root.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <div class="container">
+            <h2>Download</h2>
+            <div class="downloads">
+                <div class="dl-card">
+                    <h3>ShardCoin Core (Node + CLI)</h3>
+                    <p>Full node daemon, command-line RPC client, transaction tool, and wallet utility. Linux aarch64.</p>
+                    <a href="/download/shardcoin-core-linux-aarch64.tar.gz">Download Core</a>
+                </div>
+                <div class="dl-card">
+                    <h3>ShardWallet (PWA)</h3>
+                    <p>Non-custodial browser wallet. BIP39 seed phrases, client-side signing, works on any device.</p>
+                    <a href="https://github.com/code2031/ShardWallet" class="secondary">GitHub</a>
+                </div>
+                <div class="dl-card">
+                    <h3>Source Code</h3>
+                    <p>Build from source. Requires Boost, libevent, OpenSSL, and standard build tools.</p>
+                    <a href="https://github.com/code2031/ShardCoin" class="secondary">GitHub</a>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <span class="comment"># Quick start</span><br>
+                <span class="cmd">tar xzf shardcoin-core-linux-aarch64.tar.gz</span><br>
+                <span class="cmd">cd shardcoin-core</span><br>
+                <br>
+                <span class="comment"># Start the node</span><br>
+                <span class="cmd">./shardcoind -daemon</span><br>
+                <br>
+                <span class="comment"># Check status</span><br>
+                <span class="cmd">./shardcoin-cli getblockchaininfo</span><br>
+                <span class="cmd">./shardcoin-cli getaiinfo</span><br>
+                <br>
+                <span class="comment"># Mine with AI (requires Ollama running)</span><br>
+                <span class="cmd">ollama serve &amp;</span><br>
+                <span class="cmd">./shardcoin-cli createwallet "main"</span><br>
+                <span class="cmd">./shardcoin-cli -generate 1</span>
+            </div>
+        </div>
+    </section>
+
+    <section style="background: var(--surface);">
+        <div class="container">
+            <h2>Network Parameters</h2>
+            <table>
+                <tr><th>Parameter</th><th>Value</th></tr>
+                <tr><td>Ticker</td><td>SHRD</td></tr>
+                <tr><td>Algorithm</td><td>Scrypt + AI Proof-of-Work</td></tr>
+                <tr><td>P2P Port</td><td>7333</td></tr>
+                <tr><td>RPC Port</td><td>7332</td></tr>
+                <tr><td>Address Prefix</td><td>S (bech32: shrd1...)</td></tr>
+                <tr><td>BIP44 Coin Type</td><td>1000</td></tr>
+                <tr><td>P2PKH Prefix</td><td>63</td></tr>
+                <tr><td>P2SH Prefix</td><td>5</td></tr>
+                <tr><td>Bech32 HRP</td><td>shrd</td></tr>
+                <tr><td>WIF Prefix</td><td>191</td></tr>
+                <tr><td>Network Magic</td><td>0xd3a2c4e7</td></tr>
+            </table>
+        </div>
+    </section>
+
+    <footer>
+        <p>ShardCoin is open source under the MIT license.</p>
+        <p style="margin-top:8px;">
+            <a href="https://github.com/code2031/ShardCoin">GitHub</a> &middot;
+            <a href="https://github.com/code2031/ShardCoin/blob/master/WHITEPAPER.md">Whitepaper</a> &middot;
+            <a href="https://github.com/code2031/ShardWallet">ShardWallet</a>
+        </p>
+    </footer>
+</body>
+</html>
