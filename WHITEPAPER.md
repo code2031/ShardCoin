@@ -1,12 +1,14 @@
-# ShardCoin: A Peer-to-Peer Digital Currency with Smooth Emission Decay and Privacy Extensions
+# ShardCoin: An AI-Native Cryptocurrency with Proof of AI Work, Smooth Emission Decay, and Privacy Extensions
 
-**Version 1.0 — March 2026**
+**Version 2.0 — March 2026**
 
 ---
 
 ## Abstract
 
-ShardCoin (SHRD) is a peer-to-peer cryptocurrency that combines the proven reliability of the Bitcoin/Litecoin architecture with a novel smooth emission decay model and built-in privacy extensions. Unlike traditional halvings that abruptly cut miner rewards in half, ShardCoin reduces block rewards by 10% every 100,000 blocks, producing a predictable and gradual decline in new coin issuance. With a maximum supply of approximately 8.4 million SHRD, the coin is designed for scarcity while maintaining miner incentives over a longer horizon. ShardCoin activates Segregated Witness, Taproot, and Mimblewimble Extension Blocks (MWEB) from its genesis block, providing a modern feature set from day one.
+ShardCoin (SHRD) is the first AI-native cryptocurrency — a peer-to-peer digital currency that integrates local AI inference directly into its mining process. Every block mined on the ShardCoin network carries a cryptographic proof that the miner performed AI computation via Ollama, a local large language model runtime. This AI Proof-of-Work (PoAIW) mechanism transforms mining from pure hash grinding into a hybrid process that incentivizes running AI infrastructure alongside traditional Scrypt proof-of-work.
+
+ShardCoin combines this innovation with a smooth emission decay model (10% reduction every 100,000 blocks), a scarce maximum supply of approximately 8.4 million SHRD, and a full suite of protocol features — Segregated Witness, Taproot, and Mimblewimble Extension Blocks (MWEB) — all activated from the genesis block.
 
 ---
 
@@ -14,13 +16,14 @@ ShardCoin (SHRD) is a peer-to-peer cryptocurrency that combines the proven relia
 
 Bitcoin introduced the concept of a decentralized digital currency secured by proof-of-work. Litecoin adapted this model with faster block times and the memory-hard Scrypt hashing algorithm. Both use a halving-based emission schedule where block rewards are cut in half at fixed intervals — a mechanism that creates predictable but abrupt supply shocks.
 
-ShardCoin builds on this lineage with three key design decisions:
+ShardCoin builds on this lineage with four key design decisions:
 
-1. **Smooth emission decay** rather than abrupt halvings
-2. **Scarce fixed supply** of ~8.4M coins (10x scarcer than Bitcoin)
-3. **All protocol upgrades active from genesis** — no activation delays
+1. **AI Proof-of-Work** — mining requires local AI inference via Ollama
+2. **Smooth emission decay** rather than abrupt halvings
+3. **Scarce fixed supply** of ~8.4M coins (10x scarcer than Bitcoin)
+4. **All protocol upgrades active from genesis** — no activation delays
 
-These choices aim to reduce supply-shock volatility, create genuine digital scarcity, and eliminate the technical debt of gradual feature activation.
+These choices create a cryptocurrency that incentivizes AI compute infrastructure, reduces supply-shock volatility, ensures genuine digital scarcity, and eliminates the technical debt of gradual feature activation.
 
 ---
 
@@ -32,7 +35,8 @@ ShardCoin is a full fork of the Litecoin Core codebase, which itself descends fr
 
 | Parameter | Value |
 |-----------|-------|
-| Mining Algorithm | Scrypt |
+| Mining Algorithm | Scrypt + AI Proof-of-Work (PoAIW) |
+| AI Backend | Ollama (local LLM inference) |
 | Block Time | 2.5 minutes |
 | Initial Block Reward | 5 SHRD |
 | Emission Decay | 10% reduction every 100,000 blocks |
@@ -127,18 +131,89 @@ This approach uses integer arithmetic only, avoiding floating-point rounding iss
 
 ## 4. Mining
 
-### 4.1 Scrypt Proof-of-Work
+### 4.1 Hybrid Proof-of-Work: Scrypt + AI
 
-ShardCoin uses the Scrypt hash function for proof-of-work, the same algorithm used by Litecoin. Scrypt is memory-hard, requiring significant RAM to compute efficiently. This was originally designed to resist ASIC mining, though Scrypt ASICs now exist.
+ShardCoin introduces a hybrid mining model that combines traditional Scrypt proof-of-work with AI Proof-of-Work (PoAIW). Every block mined on the network must include a cryptographic commitment proving the miner performed AI inference using a local large language model.
 
 The target block time is 2.5 minutes, with difficulty adjusted every 2016 blocks (~3.5 days).
 
-### 4.2 Mining Methods
+### 4.2 AI Proof-of-Work (PoAIW)
 
-- **CPU Mining**: Using `cpuminer` with `--algo=scrypt`
+#### 4.2.1 Overview
+
+PoAIW requires miners to run [Ollama](https://ollama.com), an open-source local LLM runtime, alongside the ShardCoin node. When constructing a new block, the mining software:
+
+1. **Challenge generation**: Derives a deterministic prompt from the previous block hash and the current block height
+2. **AI inference**: Sends the challenge to the local Ollama instance, which generates a response using the configured language model
+3. **Proof creation**: Computes `Hash256(response)` and embeds it in the coinbase transaction as an OP_RETURN output
+4. **Scrypt mining**: Proceeds with standard Scrypt nonce grinding until the block hash meets the difficulty target
+
+The AI proof becomes part of the block's identity through the Merkle root — changing the AI response changes the coinbase transaction, which changes the Merkle root, which changes the block header hash.
+
+#### 4.2.2 Proof Structure
+
+The AI proof is encoded in a coinbase OP_RETURN output with the following format:
+
+```
+OP_RETURN [push 41 bytes] [magic "AIPR" (4B)] [version (1B)] [response_hash (32B)] [model_tag (4B)]
+```
+
+| Field | Size | Description |
+|-------|------|-------------|
+| Magic | 4 bytes | `0x41 0x49 0x50 0x52` ("AIPR") — identifies the output as an AI proof |
+| Version | 1 byte | Proof format version (currently `0x01`) |
+| Response Hash | 32 bytes | `Hash256` of the AI model's response text |
+| Model Tag | 4 bytes | First 4 bytes of `Hash256(model_name)` — identifies which model was used |
+
+Total: 41 bytes, well within the standard OP_RETURN relay limit.
+
+#### 4.2.3 Challenge Determinism
+
+The challenge prompt is deterministically derived from block data:
+
+```
+"ShardCoin block {height}. Previous hash: {prev_hash[:16]}.
+ Provide a brief, unique analysis related to decentralized computing,
+ cryptography, or artificial intelligence. Seed: {prev_hash}"
+```
+
+This ensures each block has a unique, unpredictable challenge that can only be known after the previous block is mined.
+
+#### 4.2.4 Validation
+
+Full nodes validate AI proofs without re-running inference:
+
+1. Locate the OP_RETURN output with the `AIPR` magic bytes in the coinbase transaction
+2. Verify the proof is well-formed (correct size, valid version, non-null response hash)
+3. Accept the block if the proof passes format validation
+
+This asymmetry — expensive to produce (requires running an LLM), cheap to verify (just format checking) — mirrors the fundamental property of all proof-of-work systems.
+
+#### 4.2.5 Design Rationale
+
+Traditional proof-of-work converts electricity into security through hash computation that produces no useful output. PoAIW preserves this security model (Scrypt still secures the chain) while adding a requirement that miners contribute AI compute. This:
+
+- **Incentivizes AI infrastructure**: Miners must run capable hardware with LLM support
+- **Creates verifiable AI work**: Each block permanently records that AI inference occurred
+- **Remains permissionless**: Any miner with Ollama installed can participate
+- **Preserves decentralization**: Ollama runs locally — no centralized AI API dependency
+
+### 4.3 Mining Methods
+
+- **Solo Mining with Ollama**: Start Ollama + ShardCoin node, use `generatetoaddress` RPC
+- **CPU Mining**: Using `cpuminer` with `--algo=scrypt` (AI proof handled by the node)
 - **GPU Mining**: Using `cgminer` or `bfgminer` with Scrypt mode
-- **ASIC Mining**: Any Scrypt-compatible ASIC hardware
-- **Solo Mining**: Via the built-in RPC interface (`getblocktemplate`)
+- **ASIC Mining**: Any Scrypt-compatible ASIC hardware (node handles AI proof via `getblocktemplate`)
+
+### 4.4 RPC Interface
+
+ShardCoin provides AI-specific RPC commands:
+
+| Command | Description |
+|---------|-------------|
+| `getaiinfo` | AI subsystem status — Ollama connection, model, available models |
+| `getaichallenge` | Current AI challenge prompt for the next block |
+| `getaiproof <hash>` | Extract AI proof from a specific block |
 
 ---
 
@@ -251,7 +326,8 @@ ShardCoin uses unique address prefixes (P2PKH byte 63, bech32 `shrd`) that are d
 
 | | Bitcoin | Litecoin | ShardCoin |
 |---|---------|----------|-----------|
-| Algorithm | SHA-256 | Scrypt | Scrypt |
+| Algorithm | SHA-256 | Scrypt | Scrypt + AI (PoAIW) |
+| AI Integration | None | None | Ollama (local LLM) |
 | Block Time | 10 min | 2.5 min | 2.5 min |
 | Total Supply | 21M | 84M | ~8.4M |
 | Emission | Halving/210k blocks | Halving/840k blocks | 10% decay/100k blocks |
@@ -264,7 +340,9 @@ ShardCoin uses unique address prefixes (P2PKH byte 63, bech32 `shrd`) that are d
 
 ## 10. Conclusion
 
-ShardCoin combines the battle-tested Bitcoin/Litecoin codebase with a novel smooth emission model and a modern feature set activated from genesis. The gradual 10% decay avoids the supply shocks of traditional halvings while converging on a scarce maximum supply of ~8.4 million coins. By including SegWit, Taproot, and MWEB from block 0, ShardCoin eliminates years of activation overhead and provides a complete, privacy-capable digital currency from its first block.
+ShardCoin is the first cryptocurrency to integrate AI inference directly into its mining process. By requiring miners to perform local AI computation via Ollama and embedding cryptographic proofs in every block, ShardCoin creates a blockchain that incentivizes AI infrastructure while maintaining the security guarantees of traditional proof-of-work.
+
+Combined with a smooth emission decay model, a scarce supply of ~8.4 million coins, and a complete feature set (SegWit, Taproot, MWEB) activated from genesis, ShardCoin represents a new class of AI-native digital currency — one where every block is proof that both computational work and artificial intelligence contributed to securing the network.
 
 The project is open source under the MIT license.
 

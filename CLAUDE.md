@@ -88,12 +88,13 @@ The codebase compiles into modular static libraries linked into the final binari
 
 ### Key Source Directories
 
+- `src/ai/` — AI Proof-of-Work: Ollama client (`ollama.h/cpp`) and AI proof logic (`aiproof.h/cpp`)
 - `src/consensus/` — Consensus-critical code (isolated, minimal dependencies)
 - `src/primitives/` — Block and transaction data structures
 - `src/script/` — Script interpreter, descriptor parsing
 - `src/validation.cpp` — Block/transaction validation (the largest and most critical file)
 - `src/net.cpp` / `src/net_processing.cpp` — P2P networking and message handling
-- `src/rpc/` — JSON-RPC interface (one file per domain: mining, blockchain, wallet, etc.)
+- `src/rpc/` — JSON-RPC interface (one file per domain: mining, blockchain, wallet, ai, etc.)
 - `src/wallet/` — Wallet implementation (48+ files)
 - `src/interfaces/` — Abstract interfaces separating node/wallet/chain (for modularity)
 - `src/qt/` — GUI application (125+ files, Qt 5)
@@ -144,6 +145,40 @@ Note: Source filenames retain `bitcoin` prefix from upstream — only binary out
 - All BIPs + Taproot + MWEB activated from block 0
 - Empty checkpoints map guarded with `.empty()` check in `chainparams.h`
 - No DNS seeds or checkpoints (fresh chain)
+- AI Proof-of-Work via Ollama (see AI section below)
+
+## AI Proof-of-Work (PoAIW)
+
+ShardCoin integrates local AI inference into the mining process via Ollama.
+
+### Architecture
+
+- `src/ai/ollama.h/cpp` — HTTP client for the Ollama API (localhost:11434)
+- `src/ai/aiproof.h/cpp` — AI proof creation, serialization, extraction, and validation
+- Global client: `g_ollama` (initialized in `init.cpp`, used in `miner.cpp` and `rpc/mining.cpp`)
+
+### Mining Flow
+
+1. `BlockAssembler::CreateNewBlock()` generates a deterministic challenge via `GetAIChallenge(prev_hash, height)`
+2. Sends challenge to Ollama via `g_ollama->Generate(model, prompt)`
+3. Creates proof via `CreateAIProof(response, model)` → hashes response and model name
+4. Embeds proof in coinbase OP_RETURN via `BuildAIProofScript(proof)`
+5. Standard Scrypt PoW proceeds as normal
+
+### Validation
+
+`CheckBlock()` in `validation.cpp` extracts and validates AI proof format via `ExtractAIProof()`. Validation does NOT require Ollama — only miners need it.
+
+### Configuration
+
+CLI args registered in `init.cpp`: `-aiproof`, `-ollamahost`, `-ollamaport`, `-ollamamodel`
+
+### RPC Commands
+
+Registered in `rpc/mining.cpp` under the `"ai"` category:
+- `getaiinfo` — Ollama status, model info, available models
+- `getaichallenge` — Current AI challenge for next block
+- `getaiproof <blockhash>` — Extract AI proof from a block
 
 ## Third-Party Wallet Integration
 

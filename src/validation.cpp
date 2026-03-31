@@ -5,6 +5,7 @@
 
 #include <validation.h>
 
+#include <ai/aiproof.h>
 #include <arith_uint256.h>
 #include <chain.h>
 #include <chainparams.h>
@@ -3499,6 +3500,19 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
     // Signet only: check block solution
     if (consensusParams.signet_blocks && fCheckPOW && !CheckSignetBlockSolution(block, consensusParams)) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-signet-blksig", "signet block signature validation failure");
+    }
+
+    // AI Proof-of-Work: validate AI proof commitment in coinbase
+    if (fCheckPOW) {
+        CAIProof ai_proof;
+        bool has_ai_proof = ExtractAIProof(block, ai_proof);
+        if (has_ai_proof) {
+            if (!ai_proof.IsValid()) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-ai-proof", "invalid AI proof format");
+            }
+            LogPrint(BCLog::VALIDATION, "CheckBlock(): valid AI proof (hash=%s, model_tag=%08x)\n",
+                     ai_proof.response_hash.GetHex().substr(0, 16), ai_proof.model_tag);
+        }
     }
 
     // Check the merkle root.

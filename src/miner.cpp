@@ -5,6 +5,8 @@
 
 #include <miner.h>
 
+#include <ai/aiproof.h>
+#include <ai/ollama.h>
 #include <amount.h>
 #include <chain.h>
 #include <chainparams.h>
@@ -176,6 +178,31 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
     coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
+
+    // AI Proof-of-Work: query Ollama and embed proof in coinbase OP_RETURN
+    if (g_ollama && gArgs.GetBoolArg("-aiproof", true)) {
+        std::string model = gArgs.GetArg("-ollamamodel", DEFAULT_OLLAMA_MODEL);
+        std::string challenge = GetAIChallenge(pindexPrev->GetBlockHash(), nHeight);
+
+        LogPrint(BCLog::BENCH, "CreateNewBlock(): generating AI proof for block %d...\n", nHeight);
+        int64_t nAIStart = GetTimeMicros();
+
+        OllamaResult ai_result = g_ollama->Generate(model, challenge);
+
+        int64_t nAIDuration = GetTimeMicros() - nAIStart;
+        if (ai_result.success) {
+            CAIProof proof = CreateAIProof(ai_result.response, ai_result.model);
+            CScript ai_script = BuildAIProofScript(proof);
+            CTxOut ai_out(0, ai_script);
+            coinbaseTx.vout.push_back(ai_out);
+            LogPrintf("CreateNewBlock(): AI proof generated in %.2fms (model=%s, tokens=%d, hash=%s)\n",
+                      0.001 * nAIDuration, ai_result.model, ai_result.eval_count,
+                      proof.response_hash.GetHex().substr(0, 16));
+        } else {
+            LogPrintf("CreateNewBlock(): AI proof failed: %s (mining without AI proof)\n", ai_result.error);
+        }
+    }
+
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;

@@ -4,15 +4,16 @@ ShardCoin Core
 What is ShardCoin?
 ------------------
 
-ShardCoin (SHRD) is a peer-to-peer cryptocurrency forked from Litecoin Core. It uses the Scrypt proof-of-work algorithm, enabling mining with consumer hardware. ShardCoin operates on a fully decentralized network with no central authority — transactions and coin issuance are managed collectively by the network.
+ShardCoin (SHRD) is the first AI-native cryptocurrency. It integrates local AI inference directly into the mining process via [Ollama](https://ollama.com), requiring miners to perform AI computation for every block they produce. Each block carries a cryptographic proof of AI work embedded in the coinbase transaction.
 
-ShardCoin includes MWEB (Mimblewimble Extension Blocks) for optional privacy-enhanced transactions, Taproot for smart contract capabilities, and full SegWit support — all activated from block 0.
+Built on the proven Litecoin/Bitcoin Core architecture, ShardCoin uses Scrypt proof-of-work augmented with AI Proof-of-Work (PoAIW). It includes MWEB (Mimblewimble Extension Blocks) for optional privacy, Taproot for smart contracts, and full SegWit support — all activated from block 0.
 
 ### Key Parameters
 
 | Parameter | Value |
 |-----------|-------|
-| Algorithm | Scrypt (Proof of Work) |
+| Algorithm | Scrypt + AI Proof-of-Work (PoAIW) |
+| AI Backend | Ollama (local inference) |
 | Block Time | 2.5 minutes |
 | Total Supply | ~8,400,000 SHRD |
 | Block Reward | 5 SHRD (decreases 10% every 100,000 blocks) |
@@ -69,19 +70,76 @@ After building, binaries are located in `src/`:
 - `shardcoin-wallet` — Wallet utility
 - `shardcoin-qt` — GUI wallet (if built with Qt)
 
+AI Mining (Ollama)
+------------------
+
+ShardCoin requires [Ollama](https://ollama.com) for AI-powered mining. Each block includes a cryptographic proof that the miner performed AI inference.
+
+### Setup
+
+1. Install Ollama: https://ollama.com/download
+2. Pull a model:
+   ```bash
+   ollama pull llama3.2:1b
+   ```
+3. Ollama runs automatically on `localhost:11434`
+
+### How It Works
+
+When mining a block, ShardCoin:
+1. Generates a deterministic AI challenge from the previous block hash and height
+2. Sends the challenge to your local Ollama instance
+3. Hashes the AI response and embeds the proof in the coinbase transaction (OP_RETURN)
+4. Completes standard Scrypt proof-of-work
+
+Validators check the AI proof format without re-running inference, so non-mining nodes do not need Ollama.
+
+### Configuration
+
+Add to `shardcoin.conf` or pass as command-line flags:
+
+```ini
+# Enable/disable AI proof (default: 1)
+aiproof=1
+
+# Ollama connection (defaults shown)
+ollamahost=127.0.0.1
+ollamaport=11434
+ollamamodel=llama3.2:1b
+```
+
+### AI RPC Commands
+
+```bash
+# Check AI subsystem status
+./src/shardcoin-cli getaiinfo
+
+# Get the AI challenge for the next block
+./src/shardcoin-cli getaichallenge
+
+# Extract AI proof from a mined block
+./src/shardcoin-cli getaiproof <blockhash>
+```
+
 Running
 -------
 
 ### First Run
 
-On first startup, ShardCoin will mine its genesis block (this happens automatically and takes a few seconds).
+On first startup, ShardCoin will mine its genesis block (this happens automatically and takes a few seconds). Make sure Ollama is running if you plan to mine.
 
 ```bash
+# Start Ollama (if not already running)
+ollama serve &
+
 # Start the daemon
 ./src/shardcoind -daemon
 
 # Check blockchain status
 ./src/shardcoin-cli getblockchaininfo
+
+# Check AI status
+./src/shardcoin-cli getaiinfo
 
 # Stop the daemon
 ./src/shardcoin-cli stop
@@ -188,10 +246,18 @@ To connect nodes on the network, add seed nodes to `src/chainparamsseeds.h` or u
 
 ### Mining
 
-ShardCoin uses Scrypt proof-of-work. To solo mine in regtest:
+ShardCoin uses Scrypt proof-of-work combined with AI Proof-of-Work. To solo mine in regtest:
 
 ```bash
+# Make sure Ollama is running
+ollama serve &
+
 ./src/shardcoin-cli -regtest -generate <num_blocks>
 ```
 
-For real mining on mainnet/testnet, use a Scrypt-compatible mining application pointed at the ShardCoin RPC interface.
+For mining without AI proof (e.g., testing without Ollama):
+```bash
+./src/shardcoind -regtest -daemon -noaiproof
+```
+
+For real mining on mainnet/testnet, ensure Ollama is running with your preferred model, then use `getblocktemplate` or the built-in `generatetoaddress` RPC.

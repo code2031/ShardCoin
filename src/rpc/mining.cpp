@@ -3,6 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <ai/aiproof.h>
+#include <ai/ollama.h>
 #include <amount.h>
 #include <chain.h>
 #include <chainparams.h>
@@ -1223,6 +1225,138 @@ static RPCHelpMan estimaterawfee()
     };
 }
 
+static RPCHelpMan getaiinfo()
+{
+    return RPCHelpMan{"getaiinfo",
+                "\nReturns AI subsystem status including Ollama connection and model info.\n",
+                {},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::BOOL, "enabled", "whether AI proof-of-work is enabled"},
+                        {RPCResult::Type::BOOL, "ollama_connected", "whether Ollama is reachable"},
+                        {RPCResult::Type::STR, "ollama_url", "configured Ollama endpoint"},
+                        {RPCResult::Type::STR, "model", "configured AI model"},
+                        {RPCResult::Type::ARR, "available_models", "models available in Ollama",
+                            {{RPCResult::Type::STR, "", "model name"}}},
+                    }},
+                RPCExamples{
+                    HelpExampleCli("getaiinfo", "")
+            + HelpExampleRpc("getaiinfo", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    UniValue obj(UniValue::VOBJ);
+
+    bool enabled = gArgs.GetBoolArg("-aiproof", true) && g_ollama;
+    obj.pushKV("enabled", enabled);
+
+    std::string host = gArgs.GetArg("-ollamahost", DEFAULT_OLLAMA_HOST);
+    uint16_t port = (uint16_t)gArgs.GetArg("-ollamaport", DEFAULT_OLLAMA_PORT);
+    obj.pushKV("ollama_url", "http://" + host + ":" + std::to_string(port));
+    obj.pushKV("model", gArgs.GetArg("-ollamamodel", DEFAULT_OLLAMA_MODEL));
+
+    if (g_ollama) {
+        obj.pushKV("ollama_connected", g_ollama->Ping());
+
+        UniValue models(UniValue::VARR);
+        for (const auto& m : g_ollama->ListModels()) {
+            models.push_back(m);
+        }
+        obj.pushKV("available_models", models);
+    } else {
+        obj.pushKV("ollama_connected", false);
+        obj.pushKV("available_models", UniValue(UniValue::VARR));
+    }
+
+    return obj;
+},
+    };
+}
+
+static RPCHelpMan getaichallenge()
+{
+    return RPCHelpMan{"getaichallenge",
+                "\nReturns the AI challenge prompt for the next block.\n",
+                {},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::NUM, "height", "next block height"},
+                        {RPCResult::Type::STR_HEX, "prev_hash", "previous block hash"},
+                        {RPCResult::Type::STR, "challenge", "AI challenge prompt"},
+                    }},
+                RPCExamples{
+                    HelpExampleCli("getaichallenge", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    LOCK(cs_main);
+    CBlockIndex* tip = ::ChainActive().Tip();
+
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("height", tip->nHeight + 1);
+    obj.pushKV("prev_hash", tip->GetBlockHash().GetHex());
+    obj.pushKV("challenge", GetAIChallenge(tip->GetBlockHash(), tip->nHeight + 1));
+    return obj;
+},
+    };
+}
+
+static RPCHelpMan getaiproof()
+{
+    return RPCHelpMan{"getaiproof",
+                "\nExtracts the AI proof from a block (if present).\n",
+                {
+                    {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash"},
+                },
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::BOOL, "has_proof", "whether the block has an AI proof"},
+                        {RPCResult::Type::NUM, "version", /* optional */ true, "AI proof version"},
+                        {RPCResult::Type::STR_HEX, "response_hash", /* optional */ true, "hash of AI response"},
+                        {RPCResult::Type::STR_HEX, "model_tag", /* optional */ true, "model identifier tag"},
+                    }},
+                RPCExamples{
+                    HelpExampleCli("getaiproof", "\"blockhash\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    uint256 hash(ParseHashV(request.params[0], "blockhash"));
+
+    CBlock block;
+    CBlockIndex* pblockindex;
+    {
+        LOCK(cs_main);
+        pblockindex = LookupBlockIndex(hash);
+        if (!pblockindex) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+        }
+    }
+
+    if (!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus())) {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't read block from disk");
+    }
+
+    UniValue obj(UniValue::VOBJ);
+    CAIProof proof;
+    if (ExtractAIProof(block, proof)) {
+        obj.pushKV("has_proof", true);
+        obj.pushKV("version", (int)proof.version);
+        obj.pushKV("response_hash", proof.response_hash.GetHex());
+        char tag_hex[9];
+        snprintf(tag_hex, sizeof(tag_hex), "%08x", proof.model_tag);
+        obj.pushKV("model_tag", std::string(tag_hex));
+    } else {
+        obj.pushKV("has_proof", false);
+    }
+
+    return obj;
+},
+    };
+}
+
 void RegisterMiningRPCCommands(CRPCTable &t)
 {
 // clang-format off
@@ -1236,6 +1370,9 @@ static const CRPCCommand commands[] =
     { "mining",             "submitblock",            &submitblock,            {"hexdata","dummy"} },
     { "mining",             "submitheader",           &submitheader,           {"hexdata"} },
 
+    { "ai",                 "getaiinfo",              &getaiinfo,              {} },
+    { "ai",                 "getaichallenge",         &getaichallenge,         {} },
+    { "ai",                 "getaiproof",             &getaiproof,             {"blockhash"} },
 
     { "generating",         "generatetoaddress",      &generatetoaddress,      {"nblocks","address","maxtries"} },
     { "generating",         "generatetodescriptor",   &generatetodescriptor,   {"num_blocks","descriptor","maxtries"} },
