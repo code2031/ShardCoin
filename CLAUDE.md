@@ -313,11 +313,12 @@ Registered in `rpc/mining.cpp` under the `"ai"` category:
 
 ## Web Services
 
-- `website/server.js` - Project website on port 4401 (info, downloads, whitepaper)
-- `explorer/server.js` - Blockchain explorer on port 4402 (blocks, txs, AI proofs, search)
-- `scripts/sync-chain-data.sh` - Exports blockchain to GitHub repo (code2031/ShardChain-data), runs via cron every 5 min
+- `website_flutter/` - Flutter web app (port 4401): project site + integrated block explorer with 5 tabs (Home, Technology, Download, Network, Explorer). Build with `flutter build web --release`, serve with `node serve.js`.
+- `explorer/server.js` - Explorer API backend (port 4402): Node.js server that calls `shardcoin-cli` for block/tx/AI proof data. Set `SHARDCOIN_CLI` and `SHARDCOIN_CLI_ARGS` env vars.
+- `website/` - Legacy static HTML site (superseded by Flutter app, kept for reference)
+- `scripts/sync-chain-data.sh` - Exports blockchain data to GitHub repo (code2031/ShardChain-data) via cron every 5 min
 
-Both web services are zero-dependency Node.js servers that call `shardcoin-cli` for RPC data. Set `SHARDCOIN_CLI` env var to point to the binary.
+Flutter build output is served by `website_flutter/serve.js` (Node.js static file server with SPA fallback, whitepaper endpoint at `/whitepaper`, download endpoint at `/download/*`).
 
 ## Third-Party Wallet Integration
 
