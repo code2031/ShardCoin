@@ -307,13 +307,17 @@ Registered in `rpc/mining.cpp` under the `"ai"` category:
 - `getaichallenge` - Current AI challenge for next block
 - `getaiproof <blockhash>` - Extract AI proof from a block
 - `estimateaifee [urgency]` - AI-powered fee estimation (queries Ollama with mempool stats)
+- `analyzaiblock <blockhash>` - AI analysis of a specific block
+- `analyzaimempool` - AI analysis of current mempool state
+- `analyzainetwork` - AI comprehensive network health report
 
 ## Web Services
 
 - `website/server.js` - Project website on port 4401 (info, downloads, whitepaper)
 - `explorer/server.js` - Blockchain explorer on port 4402 (blocks, txs, AI proofs, search)
+- `scripts/sync-chain-data.sh` - Exports blockchain to GitHub repo (code2031/ShardChain-data), runs via cron every 5 min
 
-Both are zero-dependency Node.js servers that call `shardcoin-cli` for RPC data. Set `SHARDCOIN_CLI` env var to point to the binary.
+Both web services are zero-dependency Node.js servers that call `shardcoin-cli` for RPC data. Set `SHARDCOIN_CLI` env var to point to the binary.
 
 ## Third-Party Wallet Integration
 

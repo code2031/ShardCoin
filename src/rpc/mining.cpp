@@ -1499,6 +1499,198 @@ static RPCHelpMan estimateaifee()
     };
 }
 
+static RPCHelpMan analyzaiblock()
+{
+    return RPCHelpMan{"analyzaiblock",
+                "\nUses AI to analyze a block and provide insights about its transactions,\n"
+                "mining characteristics, and significance in the chain.\n",
+                {
+                    {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash to analyze"},
+                },
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::NUM, "height", "block height"},
+                        {RPCResult::Type::STR, "analysis", "AI analysis of the block"},
+                        {RPCResult::Type::STR, "model", "AI model used"},
+                    }},
+                RPCExamples{
+                    HelpExampleCli("analyzaiblock", "\"blockhash\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    if (!g_ollama) throw JSONRPCError(RPC_INTERNAL_ERROR, "AI not initialized. Start with -aiproof and Ollama running.");
+
+    uint256 hash(ParseHashV(request.params[0], "blockhash"));
+    CBlock block;
+    CBlockIndex* pblockindex;
+    {
+        LOCK(cs_main);
+        pblockindex = LookupBlockIndex(hash);
+        if (!pblockindex) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+    }
+    if (!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()))
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't read block from disk");
+
+    CAIProof ai_proof;
+    bool has_ai = ExtractAIProof(block, ai_proof);
+
+    std::ostringstream prompt;
+    prompt << "Analyze this ShardCoin block concisely (3-4 sentences):\n"
+           << "Height: " << pblockindex->nHeight << "\n"
+           << "Hash: " << hash.GetHex() << "\n"
+           << "Transactions: " << block.vtx.size() << "\n"
+           << "Size: " << ::GetSerializeSize(block, PROTOCOL_VERSION) << " bytes\n"
+           << "Time: " << block.GetBlockTime() << "\n"
+           << "Difficulty: " << GetDifficulty(pblockindex) << "\n"
+           << "AI Proof: " << (has_ai ? "yes" : "no") << "\n"
+           << "Provide insights about mining activity, transaction volume, and chain health.";
+
+    std::string model = gArgs.GetArg("-ollamamodel", DEFAULT_OLLAMA_MODEL);
+    OllamaResult result = g_ollama->Generate(model, prompt.str());
+    if (!result.success) throw JSONRPCError(RPC_INTERNAL_ERROR, "AI analysis failed: " + result.error);
+
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("height", pblockindex->nHeight);
+    obj.pushKV("analysis", result.response);
+    obj.pushKV("model", result.model);
+    return obj;
+},
+    };
+}
+
+static RPCHelpMan analyzaimempool()
+{
+    return RPCHelpMan{"analyzaimempool",
+                "\nUses AI to analyze the current mempool state and provide insights about\n"
+                "pending transactions, congestion, and fee market conditions.\n",
+                {},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR, "analysis", "AI analysis of mempool"},
+                        {RPCResult::Type::NUM, "tx_count", "transactions in mempool"},
+                        {RPCResult::Type::NUM, "bytes", "mempool size in bytes"},
+                        {RPCResult::Type::STR, "model", "AI model used"},
+                    }},
+                RPCExamples{
+                    HelpExampleCli("analyzaimempool", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    if (!g_ollama) throw JSONRPCError(RPC_INTERNAL_ERROR, "AI not initialized.");
+
+    const CTxMemPool& mempool = EnsureMemPool(request.context);
+    int64_t tx_count, total_bytes;
+    double min_fee = 999999, max_fee = 0, fee_sum = 0;
+    int fee_count = 0;
+    {
+        LOCK(mempool.cs);
+        tx_count = mempool.size();
+        total_bytes = mempool.GetTotalTxSize();
+        for (const auto& entry : mempool.mapTx) {
+            double fr = entry.GetModifiedFee() * 1000.0 / entry.GetTxSize();
+            if (fr < min_fee) min_fee = fr;
+            if (fr > max_fee) max_fee = fr;
+            fee_sum += fr;
+            fee_count++;
+        }
+    }
+    if (fee_count == 0) { min_fee = 0; max_fee = 0; }
+    double avg_fee = fee_count > 0 ? fee_sum / fee_count : 0;
+
+    int height;
+    { LOCK(cs_main); height = ::ChainActive().Height(); }
+
+    std::ostringstream prompt;
+    prompt << "Analyze this ShardCoin mempool state concisely (3-4 sentences):\n"
+           << "Pending transactions: " << tx_count << "\n"
+           << "Total size: " << total_bytes << " bytes\n"
+           << "Fee rates (sat/kB): min=" << (int64_t)min_fee << " avg=" << (int64_t)avg_fee << " max=" << (int64_t)max_fee << "\n"
+           << "Chain height: " << height << "\n"
+           << "Block time: 2.5 min, max block weight: 4MB\n"
+           << "Assess congestion level, fee pressure, and provide advice for users sending transactions.";
+
+    std::string model = gArgs.GetArg("-ollamamodel", DEFAULT_OLLAMA_MODEL);
+    OllamaResult result = g_ollama->Generate(model, prompt.str());
+    if (!result.success) throw JSONRPCError(RPC_INTERNAL_ERROR, "AI analysis failed: " + result.error);
+
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("analysis", result.response);
+    obj.pushKV("tx_count", tx_count);
+    obj.pushKV("bytes", total_bytes);
+    obj.pushKV("model", result.model);
+    return obj;
+},
+    };
+}
+
+static RPCHelpMan analyzainetwork()
+{
+    return RPCHelpMan{"analyzainetwork",
+                "\nUses AI to provide a comprehensive analysis of the ShardCoin network health,\n"
+                "including chain state, mining activity, and overall assessment.\n",
+                {},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR, "analysis", "AI network health analysis"},
+                        {RPCResult::Type::NUM, "height", "current chain height"},
+                        {RPCResult::Type::NUM, "difficulty", "current difficulty"},
+                        {RPCResult::Type::STR, "model", "AI model used"},
+                    }},
+                RPCExamples{
+                    HelpExampleCli("analyzainetwork", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    if (!g_ollama) throw JSONRPCError(RPC_INTERNAL_ERROR, "AI not initialized.");
+
+    int height;
+    double difficulty;
+    int64_t median_time;
+    std::string best_hash;
+    {
+        LOCK(cs_main);
+        CBlockIndex* tip = ::ChainActive().Tip();
+        height = tip->nHeight;
+        difficulty = GetDifficulty(tip);
+        median_time = tip->GetMedianTimePast();
+        best_hash = tip->GetBlockHash().GetHex();
+    }
+
+    const CTxMemPool& mempool = EnsureMemPool(request.context);
+    int64_t mempool_count;
+    { LOCK(mempool.cs); mempool_count = mempool.size(); }
+
+    double hashps = GetNetworkHashPS(120, -1).get_real();
+
+    std::ostringstream prompt;
+    prompt << "Provide a comprehensive ShardCoin network health report (4-6 sentences):\n"
+           << "Chain height: " << height << "\n"
+           << "Best block: " << best_hash.substr(0, 16) << "...\n"
+           << "Difficulty: " << difficulty << "\n"
+           << "Network hash rate: " << hashps << " H/s\n"
+           << "Mempool: " << mempool_count << " pending transactions\n"
+           << "Median time: " << median_time << "\n"
+           << "ShardCoin uses Scrypt + AI Proof-of-Work, 2.5 min blocks, 5 SHRD reward with 10% decay.\n"
+           << "Assess overall health, mining participation, and any concerns or positive indicators.";
+
+    std::string model = gArgs.GetArg("-ollamamodel", DEFAULT_OLLAMA_MODEL);
+    OllamaResult result = g_ollama->Generate(model, prompt.str());
+    if (!result.success) throw JSONRPCError(RPC_INTERNAL_ERROR, "AI analysis failed: " + result.error);
+
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("analysis", result.response);
+    obj.pushKV("height", height);
+    obj.pushKV("difficulty", difficulty);
+    obj.pushKV("hashrate", hashps);
+    obj.pushKV("model", result.model);
+    return obj;
+},
+    };
+}
+
 void RegisterMiningRPCCommands(CRPCTable &t)
 {
 // clang-format off
@@ -1516,6 +1708,9 @@ static const CRPCCommand commands[] =
     { "ai",                 "getaichallenge",         &getaichallenge,         {} },
     { "ai",                 "getaiproof",             &getaiproof,             {"blockhash"} },
     { "ai",                 "estimateaifee",          &estimateaifee,          {"urgency"} },
+    { "ai",                 "analyzaiblock",          &analyzaiblock,          {"blockhash"} },
+    { "ai",                 "analyzaimempool",        &analyzaimempool,        {} },
+    { "ai",                 "analyzainetwork",        &analyzainetwork,        {} },
 
     { "generating",         "generatetoaddress",      &generatetoaddress,      {"nblocks","address","maxtries"} },
     { "generating",         "generatetodescriptor",   &generatetodescriptor,   {"num_blocks","descriptor","maxtries"} },

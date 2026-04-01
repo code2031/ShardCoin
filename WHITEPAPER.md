@@ -221,6 +221,9 @@ ShardCoin provides AI-specific RPC commands:
 | `getaichallenge` | Current AI challenge prompt for the next block |
 | `getaiproof <hash>` | Extract AI proof from a specific block |
 | `estimateaifee [urgency]` | AI-powered fee estimation (low/normal/high urgency) |
+| `analyzaiblock <hash>` | AI analysis of block content, mining activity, and significance |
+| `analyzaimempool` | AI analysis of mempool congestion, fees, and transaction advice |
+| `analyzainetwork` | AI comprehensive network health report with chain metrics |
 
 ---
 

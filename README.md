@@ -124,6 +124,11 @@ ollamamodel=llama3.2:1b
 ./src/shardcoin-cli estimateaifee          # normal urgency
 ./src/shardcoin-cli estimateaifee "high"   # next-block priority
 ./src/shardcoin-cli estimateaifee "low"    # minimize fee
+
+# AI analysis commands
+./src/shardcoin-cli analyzaiblock <hash>   # AI block analysis
+./src/shardcoin-cli analyzaimempool        # AI mempool analysis
+./src/shardcoin-cli analyzainetwork        # AI network health report
 ```
 
 Web Services
