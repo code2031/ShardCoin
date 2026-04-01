@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShardCoin Explorer</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root { --bg:#0a0a0f; --s:#12121a; --b:#1e1e2e; --t:#e0e0e6; --m:#8888a0; --a:#6c5ce7; --a2:#00cec9; }
+body { font-family:-apple-system,system-ui,sans-serif; background:var(--bg); color:var(--t); }
+.header { padding:20px; text-align:center; border-bottom:1px solid var(--b); }
+.header h1 { font-size:1.5rem; } .header h1 span { color:var(--a); }
+.header .sub { color:var(--m); font-size:.85rem; margin-top:4px; }
+.container { max-width:1000px; margin:0 auto; padding:20px; }
+.search { display:flex; gap:8px; margin-bottom:24px; }
+.search input { flex:1; background:var(--s); border:1px solid var(--b); color:var(--t); padding:10px 14px; border-radius:8px; font-size:.9rem; outline:none; }
+.search input:focus { border-color:var(--a); }
+.search button { background:var(--a); color:#fff; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:600; }
+.card { background:var(--s); border:1px solid var(--b); border-radius:10px; padding:20px; margin-bottom:16px; }
+.card h2 { font-size:1.1rem; margin-bottom:12px; color:var(--a2); }
+.row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--b); font-size:.85rem; }
+.row:last-child { border:none; }
+.row .label { color:var(--m); } .row .value { font-family:monospace; word-break:break-all; max-width:65%; text-align:right; }
+.blocks { display:grid; gap:8px; }
+.block-row { background:var(--s); border:1px solid var(--b); border-radius:8px; padding:12px 16px; display:grid; grid-template-columns:80px 1fr 100px 80px; align-items:center; gap:12px; font-size:.85rem; cursor:pointer; transition:border-color .2s; }
+.block-row:hover { border-color:var(--a); }
+.block-row .height { color:var(--a2); font-weight:700; }
+.block-row .hash { font-family:monospace; color:var(--m); overflow:hidden; text-overflow:ellipsis; }
+.block-row .time { color:var(--m); } .block-row .txcount { text-align:right; }
+.ai-badge { display:inline-block; background:var(--a); color:#fff; font-size:.7rem; padding:2px 8px; border-radius:10px; margin-left:8px; }
+#content { min-height:300px; }
+.loading { text-align:center; padding:40px; color:var(--m); }
+a.txlink { font-family:monospace; font-size:.8rem; color:var(--a); cursor:pointer; display:block; padding:4px 0; text-decoration:none; }
+a.txlink:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+<div class="header">
+    <h1><span>Shard</span>Coin Explorer</h1>
+    <div class="sub">AI-Native Blockchain Explorer</div>
+</div>
+<div class="container">
+    <div class="search">
+        <input id="q" placeholder="Search by block height, block hash, or txid...">
+        <button id="searchBtn">Search</button>
+    </div>
+    <div id="content"><div class="loading">Loading...</div></div>
+</div>
+<script>
+const content = document.getElementById('content');
+const qInput = document.getElementById('q');
+document.getElementById('searchBtn').addEventListener('click', search);
+qInput.addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+
+function esc(s) { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+
+function row(l, v) {
+    const div = document.createElement('div');
+    div.className = 'row';
+    const label = document.createElement('span');
+    label.className = 'label';
+    label.textContent = l;
+    const value = document.createElement('span');
+    value.className = 'value';
+    value.textContent = v;
+    div.appendChild(label);
+    div.appendChild(value);
+    return div;
+}
+
+function card(title) {
+    const c = document.createElement('div');
+    c.className = 'card';
+    const h = document.createElement('h2');
+    h.textContent = title;
+    c.appendChild(h);
+    return c;
+}
+
+async function api(path) { const r = await fetch(path); return r.json(); }
+
+async function loadHome() {
+    const [info, blocks] = await Promise.all([api('/api/info'), api('/api/blocks')]);
+    content.replaceChildren();
+
+    const net = card('Network');
+    if (info.blocks !== undefined) net.appendChild(row('Height', info.blocks));
+    if (info.difficulty) net.appendChild(row('Difficulty', info.difficulty));
+    if (info.chain) net.appendChild(row('Chain', info.chain));
+    if (info.bestblockhash) net.appendChild(row('Best Block', info.bestblockhash.substring(0,24)+'...'));
+    if (info.ai) {
+        net.appendChild(row('AI Proof', info.ai.enabled ? 'Enabled' : 'Disabled'));
+        net.appendChild(row('Ollama', info.ai.ollama_connected ? 'Connected' : 'Offline'));
+    }
+    content.appendChild(net);
+
+    const bc = card('Recent Blocks');
+    const grid = document.createElement('div');
+    grid.className = 'blocks';
+    for (const b of blocks) {
+        const r = document.createElement('div');
+        r.className = 'block-row';
+        r.addEventListener('click', () => loadBlock(b.hash));
+        const h = document.createElement('div'); h.className = 'height'; h.textContent = '#' + b.height;
+        const ha = document.createElement('div'); ha.className = 'hash'; ha.textContent = b.hash.substring(0,32) + '...';
+        const t = document.createElement('div'); t.className = 'time'; t.textContent = new Date(b.time*1000).toLocaleTimeString();
+        const tx = document.createElement('div'); tx.className = 'txcount'; tx.textContent = b.tx + ' tx';
+        if (b.ai) { const badge = document.createElement('span'); badge.className = 'ai-badge'; badge.textContent = 'AI'; tx.appendChild(badge); }
+        r.append(h, ha, t, tx);
+        grid.appendChild(r);
+    }
+    bc.appendChild(grid);
+    content.appendChild(bc);
+}
+
+async function loadBlock(hash) {
+    const b = await api('/api/block/' + hash);
+    content.replaceChildren();
+
+    const c = card('Block #' + (b.height !== undefined ? b.height : '?'));
+    c.appendChild(row('Hash', b.hash));
+    c.appendChild(row('Previous', b.previousblockhash || 'Genesis'));
+    c.appendChild(row('Time', new Date(b.time*1000).toLocaleString()));
+    c.appendChild(row('Difficulty', b.difficulty));
+    c.appendChild(row('Nonce', b.nonce));
+    c.appendChild(row('Transactions', b.tx?.length || 0));
+    c.appendChild(row('Size', b.size + ' bytes'));
+    c.appendChild(row('Weight', b.weight));
+    if (b.ai_proof) {
+        c.appendChild(row('AI Proof', 'Yes'));
+        c.appendChild(row('AI Response Hash', b.ai_proof.response_hash));
+        c.appendChild(row('AI Model Tag', b.ai_proof.model_tag));
+    }
+    content.appendChild(c);
+
+    if (b.tx?.length) {
+        const tc = card('Transactions');
+        for (const txid of b.tx) {
+            const a = document.createElement('a');
+            a.className = 'txlink';
+            a.href = '#';
+            a.textContent = txid;
+            a.addEventListener('click', e => { e.preventDefault(); loadTx(txid); });
+            tc.appendChild(a);
+        }
+        content.appendChild(tc);
+    }
+}
+
+async function loadTx(txid) {
+    const tx = await api('/api/tx/' + txid);
+    content.replaceChildren();
+
+    const c = card('Transaction');
+    c.appendChild(row('TXID', tx.txid));
+    c.appendChild(row('Size', tx.size + ' bytes'));
+    c.appendChild(row('Version', tx.version));
+    c.appendChild(row('Locktime', tx.locktime));
+    if (tx.blockhash) {
+        const r = row('Block', tx.blockhash.substring(0,24) + '...');
+        r.querySelector('.value').style.cursor = 'pointer';
+        r.querySelector('.value').style.color = 'var(--a)';
+        r.querySelector('.value').addEventListener('click', () => loadBlock(tx.blockhash));
+        c.appendChild(r);
+    }
+    content.appendChild(c);
+
+    if (tx.vin?.length) {
+        const ic = card('Inputs (' + tx.vin.length + ')');
+        for (const inp of tx.vin) {
+            if (inp.coinbase) ic.appendChild(row('Coinbase', inp.coinbase.substring(0,40)+'...'));
+            else ic.appendChild(row(inp.txid?.substring(0,16)+'...', 'vout:' + inp.vout));
+        }
+        content.appendChild(ic);
+    }
+
+    if (tx.vout?.length) {
+        const oc = card('Outputs (' + tx.vout.length + ')');
+        for (const out of tx.vout) {
+            const addr = out.scriptPubKey?.addresses?.[0] || out.scriptPubKey?.address || out.scriptPubKey?.type || 'unknown';
+            oc.appendChild(row(addr, out.value + ' SHRD'));
+        }
+        content.appendChild(oc);
+    }
+}
+
+function search() {
+    const q = qInput.value.trim();
+    if (!q) return loadHome();
+    if (/^\d+$/.test(q)) api('/api/blockhash/' + q).then(r => r.hash ? loadBlock(r.hash) : loadHome());
+    else if (q.length === 64 && /^[a-f0-9]+$/.test(q)) api('/api/block/' + q).then(r => r.hash ? loadBlock(r.hash) : loadTx(q)).catch(() => loadTx(q));
+    else loadHome();
+}
+
+loadHome();
+setInterval(loadHome, 30000);
+</script>
+</body>
+</html>

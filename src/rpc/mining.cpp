@@ -39,6 +39,7 @@
 #include <warnings.h>
 
 #include <memory>
+#include <sstream>
 #include <stdint.h>
 
 /**
@@ -1357,6 +1358,147 @@ static RPCHelpMan getaiproof()
     };
 }
 
+static RPCHelpMan estimateaifee()
+{
+    return RPCHelpMan{"estimateaifee",
+                "\nUses AI (Ollama) to analyze current mempool conditions and recommend an optimal\n"
+                "transaction fee. The AI considers mempool size, fee distribution, recent block\n"
+                "fullness, and urgency to produce a fee recommendation.\n",
+                {
+                    {"urgency", RPCArg::Type::STR, /* default */ "normal", "How urgently the transaction should confirm.\n"
+            "       \"low\" - next few blocks, minimize fee\n"
+            "       \"normal\" - within ~3 blocks\n"
+            "       \"high\" - next block priority"},
+                },
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::NUM, "feerate", "recommended fee rate in " + CURRENCY_UNIT + "/kB"},
+                        {RPCResult::Type::STR, "urgency", "the urgency level used"},
+                        {RPCResult::Type::NUM, "mempool_size", "current mempool transaction count"},
+                        {RPCResult::Type::NUM, "mempool_bytes", "current mempool size in bytes"},
+                        {RPCResult::Type::STR, "ai_reasoning", "AI explanation of the recommendation"},
+                        {RPCResult::Type::STR, "model", "AI model used"},
+                    }},
+                RPCExamples{
+                    HelpExampleCli("estimateaifee", "")
+            + HelpExampleCli("estimateaifee", "\"high\"")
+            + HelpExampleRpc("estimateaifee", "\"low\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    if (!g_ollama) {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "AI subsystem not initialized. Start with -aiproof and ensure Ollama is running.");
+    }
+
+    std::string urgency = "normal";
+    if (!request.params[0].isNull()) {
+        urgency = request.params[0].get_str();
+        if (urgency != "low" && urgency != "normal" && urgency != "high") {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "urgency must be \"low\", \"normal\", or \"high\"");
+        }
+    }
+
+    // Gather mempool stats
+    const CTxMemPool& mempool = EnsureMemPool(request.context);
+    int64_t mempool_size, mempool_bytes;
+    double min_fee, median_fee, max_fee;
+    {
+        LOCK(mempool.cs);
+        mempool_size = mempool.size();
+        mempool_bytes = mempool.GetTotalTxSize();
+
+        // Sample fee rates from mempool
+        min_fee = 999999.0;
+        max_fee = 0.0;
+        double fee_sum = 0.0;
+        int count = 0;
+        for (const auto& entry : mempool.mapTx) {
+            double feerate = entry.GetModifiedFee() * 1000.0 / entry.GetTxSize(); // sat/kB
+            if (feerate < min_fee) min_fee = feerate;
+            if (feerate > max_fee) max_fee = feerate;
+            fee_sum += feerate;
+            count++;
+        }
+        if (count > 0) {
+            median_fee = fee_sum / count;
+        } else {
+            min_fee = 1000; // 0.00001 SHRD/kB minimum
+            median_fee = 10000;
+            max_fee = 10000;
+        }
+    }
+
+    // Get recent block info
+    int height;
+    {
+        LOCK(cs_main);
+        height = ::ChainActive().Height();
+    }
+
+    // Build AI prompt with mempool context
+    std::ostringstream prompt;
+    prompt << "You are a ShardCoin fee estimation AI. Analyze these mempool conditions and recommend a fee rate.\n\n"
+           << "Current mempool: " << mempool_size << " transactions, " << mempool_bytes << " bytes\n"
+           << "Fee rates in mempool (satoshis/kB): min=" << (int64_t)min_fee << " avg=" << (int64_t)median_fee << " max=" << (int64_t)max_fee << "\n"
+           << "Current block height: " << height << "\n"
+           << "Block time: 2.5 minutes, max block weight: 4MB\n"
+           << "User urgency: " << urgency << "\n\n"
+           << "Respond with EXACTLY this format (no other text):\n"
+           << "FEE: <number in satoshis per kB>\n"
+           << "REASON: <one sentence explanation>\n";
+
+    std::string model = gArgs.GetArg("-ollamamodel", DEFAULT_OLLAMA_MODEL);
+    OllamaResult ai_result = g_ollama->Generate(model, prompt.str());
+
+    if (!ai_result.success) {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "AI fee estimation failed: " + ai_result.error);
+    }
+
+    // Parse AI response for fee recommendation
+    int64_t recommended_fee = 10000; // default: 0.0001 SHRD/kB
+    std::string reasoning = ai_result.response;
+
+    // Extract FEE: line
+    size_t fee_pos = ai_result.response.find("FEE:");
+    if (fee_pos != std::string::npos) {
+        size_t num_start = ai_result.response.find_first_of("0123456789", fee_pos);
+        if (num_start != std::string::npos) {
+            size_t num_end = ai_result.response.find_first_not_of("0123456789", num_start);
+            std::string fee_str = ai_result.response.substr(num_start, num_end - num_start);
+            try {
+                recommended_fee = std::stoll(fee_str);
+            } catch (...) {}
+        }
+    }
+
+    // Extract REASON: line
+    size_t reason_pos = ai_result.response.find("REASON:");
+    if (reason_pos != std::string::npos) {
+        size_t line_end = ai_result.response.find('\n', reason_pos);
+        reasoning = ai_result.response.substr(reason_pos + 7,
+            line_end != std::string::npos ? line_end - reason_pos - 7 : std::string::npos);
+        // Trim whitespace
+        size_t start = reasoning.find_first_not_of(" \t");
+        if (start != std::string::npos) reasoning = reasoning.substr(start);
+    }
+
+    // Clamp to sane range: 1000 sat/kB (0.00001) to 10M sat/kB (0.1)
+    recommended_fee = std::max((int64_t)1000, std::min(recommended_fee, (int64_t)10000000));
+
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("feerate", ValueFromAmount(recommended_fee));
+    obj.pushKV("urgency", urgency);
+    obj.pushKV("mempool_size", mempool_size);
+    obj.pushKV("mempool_bytes", mempool_bytes);
+    obj.pushKV("ai_reasoning", reasoning);
+    obj.pushKV("model", ai_result.model);
+
+    return obj;
+},
+    };
+}
+
 void RegisterMiningRPCCommands(CRPCTable &t)
 {
 // clang-format off
@@ -1373,6 +1515,7 @@ static const CRPCCommand commands[] =
     { "ai",                 "getaiinfo",              &getaiinfo,              {} },
     { "ai",                 "getaichallenge",         &getaichallenge,         {} },
     { "ai",                 "getaiproof",             &getaiproof,             {"blockhash"} },
+    { "ai",                 "estimateaifee",          &estimateaifee,          {"urgency"} },
 
     { "generating",         "generatetoaddress",      &generatetoaddress,      {"nblocks","address","maxtries"} },
     { "generating",         "generatetodescriptor",   &generatetodescriptor,   {"num_blocks","descriptor","maxtries"} },
