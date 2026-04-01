@@ -6,7 +6,7 @@ What is ShardCoin?
 
 ShardCoin (SHRD) is the first AI-native cryptocurrency. It integrates local AI inference directly into the mining process via [Ollama](https://ollama.com), requiring miners to perform AI computation for every block they produce. Each block carries a cryptographic proof of AI work embedded in the coinbase transaction.
 
-Built on the proven Litecoin/Bitcoin Core architecture, ShardCoin uses Scrypt proof-of-work augmented with AI Proof-of-Work (PoAIW). It includes MWEB (Mimblewimble Extension Blocks) for optional privacy, Taproot for smart contracts, and full SegWit support — all activated from block 0.
+Built on the proven Litecoin/Bitcoin Core architecture, ShardCoin uses Scrypt proof-of-work augmented with AI Proof-of-Work (PoAIW). It includes MWEB (Mimblewimble Extension Blocks) for optional privacy, Taproot for smart contracts, and full SegWit support - all activated from block 0.
 
 ### Key Parameters
 
@@ -64,11 +64,11 @@ To build without the GUI wallet:
 ```
 
 After building, binaries are located in `src/`:
-- `shardcoind` — Full node daemon
-- `shardcoin-cli` — Command-line RPC client
-- `shardcoin-tx` — Transaction utility
-- `shardcoin-wallet` — Wallet utility
-- `shardcoin-qt` — GUI wallet (if built with Qt)
+- `shardcoind` - Full node daemon
+- `shardcoin-cli` - Command-line RPC client
+- `shardcoin-tx` - Transaction utility
+- `shardcoin-wallet` - Wallet utility
+- `shardcoin-qt` - GUI wallet (if built with Qt)
 
 AI Mining (Ollama)
 ------------------
@@ -119,7 +119,31 @@ ollamamodel=llama3.2:1b
 
 # Extract AI proof from a mined block
 ./src/shardcoin-cli getaiproof <blockhash>
+
+# AI-powered fee estimation (requires Ollama)
+./src/shardcoin-cli estimateaifee          # normal urgency
+./src/shardcoin-cli estimateaifee "high"   # next-block priority
+./src/shardcoin-cli estimateaifee "low"    # minimize fee
 ```
+
+Web Services
+------------
+
+### ShardCoin Website (port 4401)
+
+```bash
+cd website && node server.js
+```
+
+Project info, download links, network parameters. Runs on port 4401.
+
+### Blockchain Explorer (port 4402)
+
+```bash
+cd explorer && SHARDCOIN_CLI=./src/shardcoin-cli node server.js
+```
+
+Live block explorer with transaction viewer, AI proof display, and search. Auto-refreshes every 30 seconds. Runs on port 4402.
 
 Running
 -------
@@ -223,11 +247,11 @@ Any wallet that supports Bitcoin/Litecoin-compatible networks can be used with S
 | RPC port | 7332 |
 
 **Compatible wallet software:**
-- **Electrum** — add ShardCoin as a custom network (fork Electrum-LTC and change parameters)
-- **Trust Wallet / Coinomi** — support custom coin configurations
-- **Any Bitcoin/Litecoin-compatible hardware wallet** (Ledger, Trezor) — with custom app or coin config
-- **ShardWallet** — our official PWA wallet ([github.com/code2031/ShardWallet](https://github.com/code2031/ShardWallet))
-- **shardcoin-qt** — built-in GUI desktop wallet (included with ShardCoin Core)
+- **Electrum** - add ShardCoin as a custom network (fork Electrum-LTC and change parameters)
+- **Trust Wallet / Coinomi** - support custom coin configurations
+- **Any Bitcoin/Litecoin-compatible hardware wallet** (Ledger, Trezor) - with custom app or coin config
+- **ShardWallet** - our official PWA wallet ([github.com/code2031/ShardWallet](https://github.com/code2031/ShardWallet))
+- **shardcoin-qt** - built-in GUI desktop wallet (included with ShardCoin Core)
 
 For RPC-compatible wallets, point them at `http://127.0.0.1:7332` with your configured `rpcuser`/`rpcpassword`.
 

@@ -55,6 +55,8 @@ const server = http.createServer((req, res) => {
         serveFile(res, path.join(__dirname, '..', 'logo.svg'), 'image/svg+xml');
     } else if (url.pathname === '/logo.png') {
         serveFile(res, path.join(__dirname, '..', 'logo.png'), 'image/png');
+    } else if (url.pathname === '/whitepaper' || url.pathname === '/whitepaper.md') {
+        serveFile(res, path.join(__dirname, '..', 'WHITEPAPER.md'), 'text/plain; charset=utf-8');
     } else if (url.pathname.startsWith('/download/')) {
         const filename = path.basename(url.pathname);
         serveDownload(res, filename);
