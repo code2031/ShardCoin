@@ -321,6 +321,19 @@ Registered in `rpc/mining.cpp` under the `"ai"` category:
 
 Both Flutter apps are served by their respective `serve.js` (Node.js static file server with SPA fallback). Set `SHARDCOIN_CLI` and `SHARDCOIN_CLI_ARGS` env vars for the explorer.
 
+### Explorer API Endpoints (`explorer_flutter/serve.js`)
+
+- `/api/info` - Chain info + AI status
+- `/api/blocks` - Latest 20 blocks
+- `/api/block/<hash>` - Block detail with AI proof
+- `/api/blockhash/<height>` - Hash by height
+- `/api/tx/<txid>` - Transaction detail
+- `/api/address/<addr>` - Address balance, UTXOs, and transactions (via `scantxoutset`)
+- `/api/ai/network` - AI network health analysis (calls `analyzainetwork`)
+- `/api/ai/mempool` - AI mempool analysis (calls `analyzaimempool`)
+- `/api/ai/block/<hash>` - AI block analysis (calls `analyzaiblock`)
+- `/api/ai/fee?urgency=` - AI fee estimate (calls `estimateaifee`)
+
 ## Third-Party Wallet Integration
 
 When configuring external wallets for ShardCoin, these are the network parameters:
