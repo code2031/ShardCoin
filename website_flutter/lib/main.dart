@@ -83,11 +83,13 @@ class _ShellState extends State<Shell> {
             if (wide) ...List.generate(tabs.length, (i) => _tab(i)),
             const Spacer(),
             // GitHub button
-            Container(
+            MouseRegion(cursor: SystemMouseCursors.click, child: GestureDetector(
+              onTap: () => _openUrl('https://github.com/code2031/ShardCoin'),
+              child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
               decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), gradient: const LinearGradient(colors: [C.purple, C.green])),
               child: Text('GitHub', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black)),
-            ),
+            ))),
           ]),
         ),
         // PAGE
@@ -193,14 +195,23 @@ Widget _page(List<Widget> children) => SingleChildScrollView(
 
 class Foot extends StatelessWidget {
   const Foot({super.key});
+  static const _links = {
+    'GitHub': 'https://github.com/code2031/ShardCoin',
+    'Releases': 'https://github.com/code2031/ShardCoin/releases',
+    'ShardWallet': 'https://github.com/code2031/ShardWallet',
+    'Chain Data': 'https://github.com/code2031/ShardChain-data',
+  };
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(vertical: 40),
     decoration: const BoxDecoration(border: Border(top: BorderSide(color: C.line, width: 0.5))),
     child: Column(children: [
       Wrap(spacing: 28, runSpacing: 8, alignment: WrapAlignment.center, children: [
-        for (final l in ['GitHub', 'Releases', 'ShardWallet', 'Chain Data'])
-          Text(l, style: GoogleFonts.inter(fontSize: 13, color: C.t3)),
+        for (final e in _links.entries)
+          MouseRegion(cursor: SystemMouseCursors.click, child: GestureDetector(
+            onTap: () => _openUrl(e.value),
+            child: Text(e.key, style: GoogleFonts.inter(fontSize: 13, color: C.t3)),
+          )),
       ]),
       const SizedBox(height: 16),
       Text('ShardCoin is open source under the MIT license.', style: GoogleFonts.inter(fontSize: 11, color: C.t3)),

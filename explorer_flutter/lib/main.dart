@@ -3,6 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'dart:js_interop' as js;
+import 'dart:js_interop_unsafe' as jsu;
+
+void _openUrl(String url) {
+  js.globalContext.callMethod('open'.toJS, url.toJS, '_blank'.toJS);
+}
 
 void main() => runApp(const ExplorerApp());
 
@@ -164,7 +170,11 @@ class _ExplorerState extends State<Explorer> {
     } else if (q.startsWith('S') || q.startsWith('shrd1') || q.startsWith('s')) {
       _loadAddr(q);
     } else if (q.length == 64 && RegExp(r'^[a-f0-9]+$').hasMatch(q)) {
-      _loadBlock(q);
+      // Try block first, fall back to txid
+      http.get(Uri.parse('http://node.local:4402/api/block/$q')).then((r) {
+        final d = json.decode(r.body);
+        if (d['hash'] != null) { _loadBlock(q); } else { _loadTx(q); }
+      }).catchError((_) => _loadTx(q));
     }
   }
 
@@ -177,11 +187,16 @@ class _ExplorerState extends State<Explorer> {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           decoration: const BoxDecoration(color: C.bg, border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
           child: Row(children: [
-            Container(width: 28, height: 28, decoration: BoxDecoration(borderRadius: BorderRadius.circular(7), gradient: const LinearGradient(colors: [C.purple, C.green])),
-              child: const Center(child: Text('S', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Colors.black)))),
-            const SizedBox(width: 10),
-            Text('ShardCoin ', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 16)),
-            Text('Explorer', style: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 16, color: C.t3)),
+            MouseRegion(cursor: SystemMouseCursors.click, child: GestureDetector(
+              onTap: _load,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(width: 28, height: 28, decoration: BoxDecoration(borderRadius: BorderRadius.circular(7), gradient: const LinearGradient(colors: [C.purple, C.green])),
+                  child: const Center(child: Text('S', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Colors.black)))),
+                const SizedBox(width: 10),
+                Text('ShardCoin ', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 16)),
+                Text('Explorer', style: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 16, color: C.t3)),
+              ]),
+            )),
             const Spacer(),
             // Live indicator
             Container(
@@ -208,7 +223,7 @@ class _ExplorerState extends State<Explorer> {
                 controller: sc, onSubmitted: (_) => _search(),
                 style: GoogleFonts.jetBrainsMono(fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'Search by block height, block hash, or transaction ID',
+                  hintText: 'Search by block height, block hash, txid, or wallet address (S.../shrd1...)',
                   hintStyle: GoogleFonts.inter(color: C.t3, fontSize: 13),
                   filled: true, fillColor: C.card,
                   prefixIcon: const Icon(Icons.search_rounded, color: C.t3, size: 18),
@@ -255,9 +270,17 @@ class _ExplorerState extends State<Explorer> {
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           decoration: const BoxDecoration(color: C.bg2, border: Border(top: BorderSide(color: C.line, width: 0.5))),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            for (final l in ['GitHub', 'ShardCoin', 'ShardWallet', 'Chain Data'])
+            for (final e in {
+              'GitHub': 'https://github.com/code2031/ShardCoin',
+              'Releases': 'https://github.com/code2031/ShardCoin/releases',
+              'ShardWallet': 'https://github.com/code2031/ShardWallet',
+              'Chain Data': 'https://github.com/code2031/ShardChain-data',
+            }.entries)
               Padding(padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(l, style: GoogleFonts.inter(fontSize: 12, color: C.t3))),
+                child: MouseRegion(cursor: SystemMouseCursors.click, child: GestureDetector(
+                  onTap: () => _openUrl(e.value),
+                  child: Text(e.key, style: GoogleFonts.inter(fontSize: 12, color: C.t3)),
+                ))),
           ]),
         ),
       ]),
