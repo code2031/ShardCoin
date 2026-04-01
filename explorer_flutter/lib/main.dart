@@ -49,7 +49,10 @@ class _ExplorerState extends State<Explorer> {
   // State
   List<dynamic> blocks = [];
   Map<String, dynamic>? info, blk, txn;
+  Map<String, dynamic>? aiNetwork, aiMempool, aiBlockAnalysis;
+  Map<String, dynamic>? aiFee;
   bool loading = true;
+  bool aiLoading = false;
   String? error;
   final sc = TextEditingController();
   Timer? timer;
@@ -61,7 +64,7 @@ class _ExplorerState extends State<Explorer> {
   void initState() {
     super.initState();
     _load();
-    timer = Timer.periodic(const Duration(seconds: 20), (_) {
+    timer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (blk == null && txn == null) _load();
     });
   }
@@ -84,18 +87,53 @@ class _ExplorerState extends State<Explorer> {
         info = json.decode(r1.body);
         blocks = json.decode(r2.body);
         loading = false; error = null; blk = null; txn = null;
+        aiBlockAnalysis = null;
         _history.clear(); _history.add('home');
       });
+      // Auto-fetch AI insights in background
+      _loadAiInsights();
     } catch (e) {
       if (mounted) setState(() { loading = false; error = 'Could not connect to node'; });
     }
   }
 
+  Future<void> _loadAiInsights() async {
+    if (info?['ai']?['enabled'] != true || info?['ai']?['ollama_connected'] != true) return;
+    if (aiLoading) return;
+    setState(() => aiLoading = true);
+    try {
+      final results = await Future.wait([
+        http.get(Uri.parse('http://node.local:4402/api/ai/network')),
+        http.get(Uri.parse('http://node.local:4402/api/ai/mempool')),
+        http.get(Uri.parse('http://node.local:4402/api/ai/fee?urgency=normal')),
+      ]);
+      if (mounted) setState(() {
+        aiNetwork = json.decode(results[0].body);
+        aiMempool = json.decode(results[1].body);
+        aiFee = json.decode(results[2].body);
+        aiLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => aiLoading = false);
+    }
+  }
+
+  Future<void> _loadBlockAi(String hash) async {
+    try {
+      final r = await http.get(Uri.parse('http://node.local:4402/api/ai/block/$hash'));
+      if (mounted) setState(() => aiBlockAnalysis = json.decode(r.body));
+    } catch (_) {}
+  }
+
   Future<void> _loadBlock(String h) async {
-    setState(() => loading = true);
+    setState(() { loading = true; aiBlockAnalysis = null; });
     try {
       final r = await http.get(Uri.parse('http://node.local:4402/api/block/$h'));
       if (mounted) setState(() { blk = json.decode(r.body); txn = null; loading = false; _push('block'); });
+      // Auto-fetch AI block analysis
+      if (info?['ai']?['enabled'] == true && info?['ai']?['ollama_connected'] == true) {
+        _loadBlockAi(h);
+      }
     } catch (_) { if (mounted) setState(() => loading = false); }
   }
 
@@ -272,6 +310,22 @@ class _ExplorerState extends State<Explorer> {
 
   // ---- VIEWS ----
 
+  Widget _aiCard(String title, Map<String, dynamic>? data, {Color accent = C.purple}) {
+    if (data == null || data['error'] != null) return const SizedBox.shrink();
+    final analysis = data['analysis'] as String? ?? data['recommendation'] as String?;
+    if (analysis == null || analysis.isEmpty) return const SizedBox.shrink();
+    return _section(title, [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+        child: SelectableText(analysis, style: GoogleFonts.inter(fontSize: 13, color: C.t2, height: 1.6)),
+      ),
+      if (data['model'] != null) Container(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+        child: Text('Model: ${data['model']}', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: C.t3)),
+      ),
+    ], accent: accent);
+  }
+
   Widget _homeView() => Column(children: [
     // Network overview
     if (info != null) _section('Network Overview', [
@@ -285,6 +339,30 @@ class _ExplorerState extends State<Explorer> {
         _kv('AI Model', '${info!['ai']['model'] ?? '-'}'),
       ],
     ]),
+
+    // AI Insights (auto-loaded)
+    if (aiLoading) Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: C.purple, strokeWidth: 2)),
+        const SizedBox(width: 10),
+        Text('AI analyzing network...', style: GoogleFonts.inter(fontSize: 12, color: C.t3)),
+      ]),
+    ),
+    _aiCard('AI Network Analysis', aiNetwork, accent: C.purple),
+    _aiCard('AI Mempool Analysis', aiMempool, accent: C.blue),
+    if (aiFee != null && aiFee!['recommendation'] != null)
+      _section('AI Fee Recommendation', [
+        if (aiFee!['recommended_fee_rate'] != null) _kv('Rate', '${aiFee!['recommended_fee_rate']} sat/kB', vc: C.green),
+        if (aiFee!['recommendation'] != null) Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: SelectableText('${aiFee!['recommendation']}', style: GoogleFonts.inter(fontSize: 13, color: C.t2, height: 1.6)),
+        ),
+        if (aiFee!['model'] != null) Container(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: Text('Model: ${aiFee!['model']}', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: C.t3)),
+        ),
+      ], accent: C.green),
 
     // Blocks list
     _section('Recent Blocks', [
@@ -337,16 +415,23 @@ class _ExplorerState extends State<Explorer> {
       // Block header
       _section('Block #${b['height'] ?? '?'}', [
         _kv('Hash', '${b['hash']}'),
+        _kv('Confirmations', '${b['confirmations'] ?? '-'}', vc: C.green),
         _kv('Previous Block', b['previousblockhash'] ?? 'Genesis',
           tap: b['previousblockhash'] != null ? () => _loadBlock(b['previousblockhash']) : null),
+        if (b['nextblockhash'] != null)
+          _kv('Next Block', '${b['nextblockhash']}', tap: () => _loadBlock(b['nextblockhash'])),
         _kv('Timestamp', DateTime.fromMillisecondsSinceEpoch(b['time'] * 1000).toLocal().toString()),
         _kv('Difficulty', '${b['difficulty']}'),
+        _kv('Bits', '${b['bits'] ?? '-'}'),
         _kv('Nonce', '${b['nonce']}'),
         _kv('Size', '${b['size']} bytes'),
-        _kv('Weight', '${b['weight']}'),
+        _kv('Stripped Size', '${b['strippedsize'] ?? '-'} bytes'),
+        _kv('Weight', '${b['weight']} WU'),
         _kv('Transactions', '${txList.length}'),
         _kv('Merkle Root', '${b['merkleroot'] ?? '-'}'),
         _kv('Version', '0x${(b['version'] as int?)?.toRadixString(16) ?? '-'}'),
+        _kv('Chain Work', '${b['chainwork'] ?? '-'}'),
+        _kv('Median Time', b['mediantime'] != null ? DateTime.fromMillisecondsSinceEpoch(b['mediantime'] * 1000).toLocal().toString() : '-'),
       ]),
 
       // AI Proof (if present)
@@ -356,6 +441,15 @@ class _ExplorerState extends State<Explorer> {
         _kv('Response Hash', '${b['ai_proof']['response_hash']}'),
         _kv('Model Tag', '${b['ai_proof']['model_tag']}'),
       ], accent: C.purple),
+
+      // AI Block Analysis (auto-loaded)
+      if (aiBlockAnalysis == null && info?['ai']?['ollama_connected'] == true)
+        Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: C.purple, strokeWidth: 2)),
+          const SizedBox(width: 10),
+          Text('AI analyzing block...', style: GoogleFonts.inter(fontSize: 12, color: C.t3)),
+        ])),
+      _aiCard('AI Block Analysis', aiBlockAnalysis, accent: C.purple),
 
       // Transactions
       if (txList.isNotEmpty) _section('Transactions (${txList.length})', [
@@ -390,11 +484,16 @@ class _ExplorerState extends State<Explorer> {
       _section('Transaction', [
         _kv('TXID', '${t['txid']}'),
         if (t['blockhash'] != null) _kv('Block', '${t['blockhash']}', tap: () => _loadBlock(t['blockhash'])),
+        if (t['confirmations'] != null) _kv('Confirmations', '${t['confirmations']}', vc: C.green),
+        if (t['blocktime'] != null) _kv('Block Time', DateTime.fromMillisecondsSinceEpoch(t['blocktime'] * 1000).toLocal().toString()),
         _kv('Size', '${t['size']} bytes'),
         _kv('Virtual Size', '${t['vsize'] ?? t['size']} vbytes'),
-        _kv('Weight', '${t['weight'] ?? '-'}'),
+        _kv('Weight', '${t['weight'] ?? '-'} WU'),
         _kv('Version', '${t['version']}'),
         _kv('Locktime', '${t['locktime']}'),
+        _kv('Inputs', '${vin.length}'),
+        _kv('Outputs', '${vout.length}'),
+        if (t['hex'] != null) _kv('Raw Hex Size', '${(t['hex'] as String).length ~/ 2} bytes'),
       ]),
 
       // Inputs

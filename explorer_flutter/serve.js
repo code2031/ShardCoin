@@ -83,6 +83,21 @@ const server = http.createServer((req, res) => {
             if (!/^[a-f0-9]{64}$/.test(txid)) { res.writeHead(400); res.end('{"error":"invalid txid"}'); return; }
             const tx = rpc('getrawtransaction', txid, 1);
             res.end(JSON.stringify(tx || { error: 'Transaction not found' }));
+        } else if (url.pathname === '/api/ai/network') {
+            const result = rpc('analyzainetwork');
+            res.end(JSON.stringify(result || { error: 'AI not available' }));
+        } else if (url.pathname === '/api/ai/mempool') {
+            const result = rpc('analyzaimempool');
+            res.end(JSON.stringify(result || { error: 'AI not available' }));
+        } else if (url.pathname.startsWith('/api/ai/block/')) {
+            const hash = url.pathname.split('/')[4];
+            if (!/^[a-f0-9]{64}$/.test(hash)) { res.writeHead(400); res.end('{"error":"invalid hash"}'); return; }
+            const result = rpc('analyzaiblock', hash);
+            res.end(JSON.stringify(result || { error: 'AI not available' }));
+        } else if (url.pathname === '/api/ai/fee') {
+            const urgency = url.searchParams.get('urgency') || 'normal';
+            const result = rpc('estimateaifee', urgency);
+            res.end(JSON.stringify(result || { error: 'AI not available' }));
         } else {
             res.writeHead(404);
             res.end(JSON.stringify({ error: 'Not found' }));
