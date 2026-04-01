@@ -1,1014 +1,572 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 
-void main() => runApp(const ShardCoinApp());
+void main() => runApp(const App());
 
-// ============================================================
-// THEME
-// ============================================================
-class S {
-  static const bg = Color(0xFF050507);
-  static const bg2 = Color(0xFF0A0A0E);
-  static const surface = Color(0xFF0E0E14);
-  static const surface2 = Color(0xFF141420);
-  static const surface3 = Color(0xFF1A1A28);
-  static const border = Color(0xFF1E1E30);
-  static const border2 = Color(0xFF2C2C42);
-  static const text = Color(0xFFF8F8FC);
-  static const text2 = Color(0xFFB0B0C0);
-  static const text3 = Color(0xFF6E6E84);
-  static const green = Color(0xFF14F195);
-  static const purple = Color(0xFF9945FF);
-  static const blue = Color(0xFF4DA2FF);
-  static const pink = Color(0xFFEB459E);
-  static const grad = [purple, blue, green];
-  static const grad2 = [purple, green];
-  static const gradPink = [pink, purple, blue];
+// ===== COLORS =====
+class C {
+  static const bg      = Color(0xFF050508);
+  static const bg2     = Color(0xFF0B0B10);
+  static const card    = Color(0xFF101018);
+  static const card2   = Color(0xFF161622);
+  static const line    = Color(0xFF1E1E30);
+  static const line2   = Color(0xFF2A2A40);
+  static const t1      = Color(0xFFF4F4F8);
+  static const t2      = Color(0xFFA8A8BC);
+  static const t3      = Color(0xFF68687E);
+  static const green   = Color(0xFF14F195);
+  static const purple  = Color(0xFF9945FF);
+  static const blue    = Color(0xFF4DA2FF);
+  static const pink    = Color(0xFFEB459E);
 }
 
-// ============================================================
-// APP
-// ============================================================
-class ShardCoinApp extends StatelessWidget {
-  const ShardCoinApp({super.key});
+// ===== APP =====
+class App extends StatelessWidget {
+  const App({super.key});
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ShardCoin',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true).copyWith(
-        scaffoldBackgroundColor: S.bg,
-        textTheme: ThemeData.dark().textTheme.apply(fontFamily: 'Inter'),
+        scaffoldBackgroundColor: C.bg,
+        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
       ),
       home: const Shell(),
     );
   }
 }
 
-// ============================================================
-// SHELL (Nav + Pages)
-// ============================================================
+// ===== SHELL =====
 class Shell extends StatefulWidget {
   const Shell({super.key});
   @override
   State<Shell> createState() => _ShellState();
 }
 
-class _ShellState extends State<Shell> with TickerProviderStateMixin {
-  int _tab = 0;
-  late final AnimationController _fadeCtrl;
-  late Animation<double> _fade;
-
-  final _labels = ['Home', 'Technology', 'Download', 'Network', 'Explorer'];
-  final _icons = [Icons.home_rounded, Icons.memory_rounded, Icons.download_rounded, Icons.hub_rounded, Icons.explore_rounded];
-
-  @override
-  void initState() {
-    super.initState();
-    _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
-    _fade = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
-    _fadeCtrl.forward();
-  }
-
-  void _switchTab(int i) {
-    if (i == _tab) return;
-    _fadeCtrl.reverse().then((_) {
-      setState(() => _tab = i);
-      _fadeCtrl.forward();
-    });
-  }
-
-  @override
-  void dispose() { _fadeCtrl.dispose(); super.dispose(); }
+class _ShellState extends State<Shell> {
+  int tab = 0;
+  final tabs = ['Home', 'Technology', 'Download', 'Network', 'Explorer'];
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.of(context).size.width > 800;
+    final wide = MediaQuery.of(context).size.width > 860;
     return Scaffold(
-      body: Column(
-        children: [
-          // ---- NAV ----
-          Container(
-            height: 60,
-            decoration: BoxDecoration(
-              color: S.bg.withValues(alpha: 0.85),
-              border: const Border(bottom: BorderSide(color: S.border, width: 0.5)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  _logo(),
-                  if (wide) ...[
-                    const SizedBox(width: 40),
-                    for (var i = 0; i < _labels.length; i++) _navBtn(i),
-                  ],
-                  const Spacer(),
-                  _gradBtn('GitHub', small: true),
-                ],
-              ),
-            ),
-          ),
-          // ---- CONTENT ----
-          Expanded(
-            child: FadeTransition(
-              opacity: _fade,
-              child: [
-                const HomePage(),
-                const TechPage(),
-                const DownloadPage(),
-                const NetworkPage(),
-                const ExplorerPage(),
-              ][_tab],
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: wide ? null : Container(
-        decoration: const BoxDecoration(border: Border(top: BorderSide(color: S.border, width: 0.5))),
-        child: BottomNavigationBar(
-          currentIndex: _tab,
-          onTap: _switchTab,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: S.bg2,
-          selectedItemColor: S.green,
-          unselectedItemColor: S.text3,
-          selectedFontSize: 11,
-          unselectedFontSize: 11,
-          items: [for (var i = 0; i < _labels.length; i++) BottomNavigationBarItem(icon: Icon(_icons[i], size: 20), label: _labels[i])],
-        ),
-      ),
-    );
-  }
-
-  Widget _logo() => GestureDetector(
-    onTap: () => _switchTab(0),
-    child: MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: Row(children: [
+      body: Column(children: [
+        // NAV
         Container(
-          width: 30, height: 30,
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), gradient: const LinearGradient(colors: S.grad2, begin: Alignment.topLeft, end: Alignment.bottomRight)),
-          child: const Center(child: Text('S', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: Colors.black, height: 1))),
+          height: 56,
+          decoration: const BoxDecoration(color: C.bg, border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(children: [
+            // Logo
+            MouseRegion(cursor: SystemMouseCursors.click, child: GestureDetector(
+              onTap: () => setState(() => tab = 0),
+              child: Row(children: [
+                Container(width: 28, height: 28, decoration: BoxDecoration(borderRadius: BorderRadius.circular(7), gradient: const LinearGradient(colors: [C.purple, C.green])),
+                  child: const Center(child: Text('S', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Colors.black)))),
+                const SizedBox(width: 10),
+                Text('ShardCoin', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 16)),
+              ]),
+            )),
+            const SizedBox(width: 36),
+            // Tabs
+            if (wide) ...List.generate(tabs.length, (i) => _tab(i)),
+            const Spacer(),
+            // GitHub button
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), gradient: const LinearGradient(colors: [C.purple, C.green])),
+              child: Text('GitHub', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black)),
+            ),
+          ]),
         ),
-        const SizedBox(width: 10),
-        const Text('ShardCoin', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17, letterSpacing: -0.3)),
+        // PAGE
+        Expanded(child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: [const HomePage(), const TechPage(), const DlPage(), const NetPage(), const ExpPage()][tab],
+        )),
       ]),
-    ),
-  );
-
-  Widget _navBtn(int i) {
-    final active = i == _tab;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: TextButton(
-        onPressed: () => _switchTab(i),
-        style: TextButton.styleFrom(
-          backgroundColor: active ? S.surface2 : Colors.transparent,
-          foregroundColor: active ? S.text : S.text3,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          minimumSize: Size.zero,
-        ),
-        child: Text(_labels[i], style: TextStyle(fontSize: 13.5, fontWeight: active ? FontWeight.w600 : FontWeight.w500)),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// SHARED WIDGETS
-// ============================================================
-Widget _gradBtn(String text, {bool small = false, VoidCallback? onTap}) {
-  return MouseRegion(
-    cursor: SystemMouseCursors.click,
-    child: GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: small ? 18 : 28, vertical: small ? 8 : 13),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(small ? 8 : 12),
-          gradient: const LinearGradient(colors: S.grad2, begin: Alignment.topLeft, end: Alignment.bottomRight),
-          boxShadow: [BoxShadow(color: S.purple.withValues(alpha: 0.25), blurRadius: 20, offset: const Offset(0, 4))],
-        ),
-        child: Text(text, style: TextStyle(fontWeight: FontWeight.w700, fontSize: small ? 13 : 15, color: Colors.black)),
-      ),
-    ),
-  );
-}
-
-Widget _outlineBtn(String text, {VoidCallback? onTap}) {
-  return MouseRegion(
-    cursor: SystemMouseCursors.click,
-    child: GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 13),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: S.surface2,
-          border: Border.all(color: S.border2),
-        ),
-        child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-      ),
-    ),
-  );
-}
-
-class GradText extends StatelessWidget {
-  final String text;
-  final double size;
-  final FontWeight weight;
-  final List<Color> colors;
-  const GradText(this.text, {super.key, this.size = 44, this.weight = FontWeight.w800, this.colors = S.grad});
-  @override
-  Widget build(BuildContext context) {
-    return ShaderMask(
-      shaderCallback: (b) => LinearGradient(colors: colors).createShader(b),
-      child: Text(text, style: TextStyle(fontSize: size, fontWeight: weight, color: Colors.white, height: 1.15, letterSpacing: -1)),
-    );
-  }
-}
-
-class Glow extends StatelessWidget {
-  final Color color;
-  final double size;
-  final Alignment align;
-  const Glow({super.key, this.color = S.purple, this.size = 600, this.align = Alignment.topCenter});
-  @override
-  Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: Align(
-        alignment: align,
-        child: Container(
-          width: size, height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: RadialGradient(colors: [color.withValues(alpha: 0.12), Colors.transparent]),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class SectionHeader extends StatelessWidget {
-  final String title, sub;
-  final bool center;
-  const SectionHeader(this.title, this.sub, {super.key, this.center = true});
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-      children: [
-        Text(title, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -0.8, height: 1.2)),
-        const SizedBox(height: 14),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 580),
-          child: Text(sub, style: const TextStyle(fontSize: 16, color: S.text2, height: 1.65), textAlign: center ? TextAlign.center : TextAlign.left),
-        ),
-        const SizedBox(height: 56),
-      ],
-    );
-  }
-}
-
-class Card2 extends StatefulWidget {
-  final Widget child;
-  final EdgeInsets padding;
-  const Card2({super.key, required this.child, this.padding = const EdgeInsets.all(28)});
-  @override
-  State<Card2> createState() => _Card2State();
-}
-class _Card2State extends State<Card2> {
-  bool _hovered = false;
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: widget.padding,
-        decoration: BoxDecoration(
-          color: _hovered ? S.surface2 : S.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _hovered ? S.border2 : S.border, width: 0.5),
-          boxShadow: _hovered ? [BoxShadow(color: S.purple.withValues(alpha: 0.06), blurRadius: 30)] : [],
-        ),
-        child: widget.child,
-      ),
-    );
-  }
-}
-
-class Footer extends StatelessWidget {
-  const Footer({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-      decoration: const BoxDecoration(color: S.bg2, border: Border(top: BorderSide(color: S.border, width: 0.5))),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 24, height: 24,
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(6), gradient: const LinearGradient(colors: S.grad2)),
-                child: const Center(child: Text('S', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Colors.black))),
-              ),
-              const SizedBox(width: 8),
-              const Text('ShardCoin', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 32,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: [
-              for (final l in ['GitHub', 'Releases', 'ShardWallet', 'Chain Data', 'Whitepaper'])
-                Text(l, style: const TextStyle(fontSize: 13, color: S.text3)),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Container(width: 48, height: 1, color: S.border),
-          const SizedBox(height: 20),
-          const Text('Open source under the MIT license', style: TextStyle(fontSize: 12, color: S.text3)),
+      // Mobile nav
+      bottomNavigationBar: wide ? null : BottomNavigationBar(
+        currentIndex: tab, onTap: (i) => setState(() => tab = i),
+        type: BottomNavigationBarType.fixed, backgroundColor: C.bg2,
+        selectedItemColor: C.green, unselectedItemColor: C.t3,
+        selectedFontSize: 10, unselectedFontSize: 10,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_rounded, size: 20), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.memory_rounded, size: 20), label: 'Tech'),
+          BottomNavigationBarItem(icon: Icon(Icons.download_rounded, size: 20), label: 'Download'),
+          BottomNavigationBarItem(icon: Icon(Icons.hub_rounded, size: 20), label: 'Network'),
+          BottomNavigationBarItem(icon: Icon(Icons.explore_rounded, size: 20), label: 'Explorer'),
         ],
       ),
     );
   }
+
+  Widget _tab(int i) {
+    final on = i == tab;
+    return Padding(padding: const EdgeInsets.only(right: 2), child: TextButton(
+      onPressed: () => setState(() => tab = i),
+      style: TextButton.styleFrom(
+        backgroundColor: on ? C.card2 : Colors.transparent,
+        foregroundColor: on ? C.t1 : C.t3,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+        minimumSize: Size.zero,
+      ),
+      child: Text(tabs[i], style: GoogleFonts.inter(fontSize: 13, fontWeight: on ? FontWeight.w600 : FontWeight.w500)),
+    ));
+  }
 }
 
-// ============================================================
-// HOME
-// ============================================================
+// ===== SHARED =====
+class Sec extends StatelessWidget {
+  final String title, sub;
+  const Sec(this.title, this.sub, {super.key});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 48),
+    child: Column(children: [
+      Text(title, style: GoogleFonts.inter(fontSize: 30, fontWeight: FontWeight.w700, letterSpacing: -0.8), textAlign: TextAlign.center),
+      const SizedBox(height: 12),
+      ConstrainedBox(constraints: const BoxConstraints(maxWidth: 540),
+        child: Text(sub, style: GoogleFonts.inter(fontSize: 15, color: C.t2, height: 1.65), textAlign: TextAlign.center)),
+    ]),
+  );
+}
+
+class Wrap2 extends StatelessWidget {
+  final int minW;
+  final double gap;
+  final List<Widget> children;
+  const Wrap2({super.key, this.minW = 320, this.gap = 16, required this.children});
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (_, c) {
+    final cols = (c.maxWidth / minW).floor().clamp(1, children.length);
+    final w = (c.maxWidth - gap * (cols - 1)) / cols;
+    return Wrap(spacing: gap, runSpacing: gap, children: [for (final ch in children) SizedBox(width: w, child: ch)]);
+  });
+}
+
+class Kard extends StatefulWidget {
+  final Widget child;
+  const Kard({super.key, required this.child});
+  @override
+  State<Kard> createState() => _KardState();
+}
+class _KardState extends State<Kard> {
+  bool h = false;
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    onEnter: (_) => setState(() => h = true), onExit: (_) => setState(() => h = false),
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: h ? C.card2 : C.card, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: h ? C.line2 : C.line, width: 0.5),
+      ),
+      child: widget.child,
+    ),
+  );
+}
+
+Widget _page(List<Widget> children) => SingleChildScrollView(
+  child: Center(child: ConstrainedBox(
+    constraints: const BoxConstraints(maxWidth: 1080),
+    child: Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children)),
+  )),
+);
+
+class Foot extends StatelessWidget {
+  const Foot({super.key});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 40),
+    decoration: const BoxDecoration(border: Border(top: BorderSide(color: C.line, width: 0.5))),
+    child: Column(children: [
+      Wrap(spacing: 28, runSpacing: 8, alignment: WrapAlignment.center, children: [
+        for (final l in ['GitHub', 'Releases', 'ShardWallet', 'Chain Data'])
+          Text(l, style: GoogleFonts.inter(fontSize: 13, color: C.t3)),
+      ]),
+      const SizedBox(height: 16),
+      Text('ShardCoin is open source under the MIT license.', style: GoogleFonts.inter(fontSize: 11, color: C.t3)),
+    ]),
+  );
+}
+
+// ===== HOME =====
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          // HERO
-          Stack(
-            children: [
-              const Glow(color: S.purple, size: 700, align: Alignment(0, -0.8)),
-              Glow(color: S.blue, size: 400, align: const Alignment(0.6, -0.3)),
-              Padding(
-                padding: EdgeInsets.fromLTRB(24, w > 800 ? 100 : 60, 24, 80),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
-                    child: Column(
-                      children: [
-                        // Badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                          decoration: BoxDecoration(color: S.surface2, borderRadius: BorderRadius.circular(100), border: Border.all(color: S.border2, width: 0.5)),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Container(width: 7, height: 7, decoration: BoxDecoration(shape: BoxShape.circle, color: S.green, boxShadow: [BoxShadow(color: S.green.withValues(alpha: 0.5), blurRadius: 8)])),
-                            const SizedBox(width: 8),
-                            const Text('AI-Native Blockchain', style: TextStyle(fontSize: 12.5, color: S.text2, fontWeight: FontWeight.w500)),
-                          ]),
-                        ),
-                        const SizedBox(height: 36),
-                        Text('Powerful for miners.', style: TextStyle(fontSize: w > 800 ? 56 : 36, fontWeight: FontWeight.w800, letterSpacing: -2, height: 1.08)),
-                        GradText('Intelligent by design.', size: w > 800 ? 56 : 36),
-                        const SizedBox(height: 24),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 520),
-                          child: const Text(
-                            'The first cryptocurrency where every block is proof of artificial intelligence. Scrypt mining meets local AI inference via Ollama.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 17, color: S.text2, height: 1.7),
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
-                          alignment: WrapAlignment.center,
-                          children: [_gradBtn('Get Started'), _outlineBtn('Read Whitepaper')],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+    final big = MediaQuery.of(context).size.width > 800;
+    return _page([
+      // Hero
+      SizedBox(height: big ? 100 : 60),
+      Center(child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+        decoration: BoxDecoration(color: C.card2, borderRadius: BorderRadius.circular(100), border: Border.all(color: C.line2, width: 0.5)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 7, height: 7, decoration: BoxDecoration(shape: BoxShape.circle, color: C.green, boxShadow: [BoxShadow(color: C.green.withValues(alpha: 0.5), blurRadius: 6)])),
+          const SizedBox(width: 8),
+          Text('AI-Native Blockchain', style: GoogleFonts.inter(fontSize: 12, color: C.t2, fontWeight: FontWeight.w500)),
+        ]),
+      )),
+      const SizedBox(height: 32),
+      Center(child: Text('Powerful for miners.', textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: big ? 52 : 34, fontWeight: FontWeight.w800, letterSpacing: -2, height: 1.1))),
+      Center(child: ShaderMask(
+        shaderCallback: (b) => const LinearGradient(colors: [C.purple, C.blue, C.green]).createShader(b),
+        child: Text('Intelligent by design.', textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: big ? 52 : 34, fontWeight: FontWeight.w800, color: Colors.white, height: 1.1, letterSpacing: -2)),
+      )),
+      const SizedBox(height: 20),
+      Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 500),
+        child: Text('The first cryptocurrency where every block is proof of artificial intelligence. Scrypt mining meets local AI inference via Ollama.',
+          textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 16, color: C.t2, height: 1.7)))),
+      const SizedBox(height: 36),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Container(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 13), decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), gradient: const LinearGradient(colors: [C.purple, C.green])),
+          child: Text('Get Started', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.black))),
+        const SizedBox(width: 12),
+        Container(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 13), decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: C.card2, border: Border.all(color: C.line2)),
+          child: Text('Read Whitepaper', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15))),
+      ]),
+      const SizedBox(height: 72),
 
-          // STATS
-          Container(
-            decoration: const BoxDecoration(
-              color: S.bg2,
-              border: Border(top: BorderSide(color: S.border, width: 0.5), bottom: BorderSide(color: S.border, width: 0.5)),
-            ),
-            child: LayoutBuilder(builder: (ctx, c) {
-              final items = [
-                ('5 SHRD', 'Block Reward', S.green),
-                ('~8.4M', 'Max Supply', S.purple),
-                ('2.5 min', 'Block Time', S.blue),
-                ('Scrypt+AI', 'Algorithm', S.green),
-              ];
-              return Wrap(
-                children: [
-                  for (final s in items)
-                    SizedBox(
-                      width: c.maxWidth > 700 ? c.maxWidth / 4 : c.maxWidth / 2,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 28),
-                        decoration: BoxDecoration(border: Border.all(color: S.border, width: 0.25)),
-                        child: Column(children: [
-                          Text(s.$1, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, fontFamily: 'monospace', color: s.$3, letterSpacing: -0.5)),
-                          const SizedBox(height: 6),
-                          Text(s.$2.toUpperCase(), style: const TextStyle(fontSize: 10.5, color: S.text3, letterSpacing: 1.5, fontWeight: FontWeight.w600)),
-                        ]),
-                      ),
-                    ),
-                ],
-              );
-            }),
-          ),
-
-          // FEATURES
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 100, 24, 100),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1100),
-                child: Column(
-                  children: [
-                    const SectionHeader('Built for the AI era', 'ShardCoin combines battle-tested blockchain security with AI inference, creating a network that rewards running AI infrastructure.'),
-                    LayoutBuilder(builder: (ctx, c) {
-                      final cols = c.maxWidth > 900 ? 3 : c.maxWidth > 500 ? 2 : 1;
-                      final cards = [
-                        ('\u{1F9E0}', 'AI Proof-of-Work', 'Every block includes a cryptographic proof of AI inference. Miners query local Ollama models and commit the response hash to the chain.', S.purple),
-                        ('\u{26A1}', 'AI Fee Estimation', 'The AI analyzes mempool conditions in real-time and recommends optimal fees based on current demand and user urgency.', S.green),
-                        ('\u{1F4CA}', 'AI Network Analysis', 'Built-in AI commands analyze blocks, mempool state, and overall network health with insights no traditional node offers.', S.blue),
-                        ('\u{1F510}', 'MWEB Privacy', 'Optional Mimblewimble Extension Blocks provide confidential transactions with hidden amounts via Pedersen commitments.', S.pink),
-                        ('\u{2B50}', 'Taproot from Genesis', 'Schnorr signatures, MAST, and key-path spending active from block 0. No activation delays, no technical debt.', S.green),
-                        ('\u{1F4C8}', 'Smooth Decay', 'Block rewards decrease 10% every 100k blocks instead of abrupt halvings. Predictable supply, no mining revenue shocks.', S.blue),
-                      ];
-                      final gap = 16.0;
-                      final cardW = (c.maxWidth - gap * (cols - 1)) / cols;
-                      return Wrap(
-                        spacing: gap,
-                        runSpacing: gap,
-                        children: [
-                          for (final f in cards)
-                            SizedBox(
-                              width: cardW,
-                              child: Card2(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      width: 44, height: 44,
-                                      decoration: BoxDecoration(color: f.$4.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-                                      child: Center(child: Text(f.$1, style: const TextStyle(fontSize: 20))),
-                                    ),
-                                    const SizedBox(height: 18),
-                                    Text(f.$2, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
-                                    const SizedBox(height: 8),
-                                    Text(f.$3, style: const TextStyle(fontSize: 13.5, color: S.text2, height: 1.6)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                        ],
-                      );
-                    }),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const Footer(),
-        ],
+      // Stats
+      Container(
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: C.line, width: 0.5)),
+        clipBehavior: Clip.antiAlias,
+        child: LayoutBuilder(builder: (_, c) {
+          final cols = c.maxWidth > 600 ? 4 : 2;
+          final stats = [('5 SHRD', 'Block Reward', C.green), ('~8.4M', 'Max Supply', C.purple), ('2.5 min', 'Block Time', C.blue), ('Scrypt+AI', 'Algorithm', C.green)];
+          return Wrap(children: [
+            for (final s in stats)
+              SizedBox(width: c.maxWidth / cols, child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                decoration: BoxDecoration(color: C.card, border: Border.all(color: C.line, width: 0.25)),
+                child: Column(children: [
+                  Text(s.$1, style: GoogleFonts.jetBrainsMono(fontSize: 20, fontWeight: FontWeight.w700, color: s.$3)),
+                  const SizedBox(height: 4),
+                  Text(s.$2.toUpperCase(), style: GoogleFonts.inter(fontSize: 10, color: C.t3, letterSpacing: 1.5, fontWeight: FontWeight.w600)),
+                ]),
+              )),
+          ]);
+        }),
       ),
-    );
+      const SizedBox(height: 80),
+
+      // Features
+      const Sec('Built for the AI era', 'ShardCoin combines battle-tested blockchain security with AI inference, creating a network that rewards running AI infrastructure.'),
+      Wrap2(children: [
+        for (final f in [
+          ('\u{1F9E0}', 'AI Proof-of-Work', 'Every block includes a cryptographic proof of AI inference via local Ollama models.', C.purple),
+          ('\u{26A1}', 'AI Fee Estimation', 'AI analyzes mempool conditions and recommends optimal fees based on demand.', C.green),
+          ('\u{1F4CA}', 'AI Network Analysis', 'Built-in AI commands analyze blocks, mempool, and network health.', C.blue),
+          ('\u{1F510}', 'MWEB Privacy', 'Confidential transactions with hidden amounts via Pedersen commitments.', C.pink),
+          ('\u{2B50}', 'Taproot from Genesis', 'Schnorr signatures, MAST, key-path spending active from block 0.', C.green),
+          ('\u{1F4C8}', 'Smooth Decay', '10% reward reduction every 100k blocks instead of abrupt halvings.', C.blue),
+        ])
+          Kard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(width: 40, height: 40, decoration: BoxDecoration(color: f.$4.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+              child: Center(child: Text(f.$1, style: const TextStyle(fontSize: 18)))),
+            const SizedBox(height: 16),
+            Text(f.$2, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            Text(f.$3, style: GoogleFonts.inter(fontSize: 13, color: C.t2, height: 1.55)),
+          ])),
+      ]),
+      const SizedBox(height: 80),
+      const Foot(),
+    ]);
   }
 }
 
-// ============================================================
-// TECHNOLOGY
-// ============================================================
+// ===== TECHNOLOGY =====
 class TechPage extends StatelessWidget {
   const TechPage({super.key});
   @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          const SizedBox(height: 80),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: SectionHeader('How AI Mining Works', 'Four steps transform a standard block into an AI-verified unit of work.'),
-          ),
-          // Steps
-          LayoutBuilder(builder: (ctx, c) {
-            final steps = [
-              ('01', 'Challenge', 'A deterministic prompt derived from the previous block hash and height. Unique and unpredictable per block.', S.purple),
-              ('02', 'Inference', 'The miner\'s local Ollama instance processes the challenge, generating a unique AI response.', S.blue),
-              ('03', 'Commit', 'Response hash embedded in coinbase OP_RETURN as a 41-byte AIPR proof, permanently on-chain.', S.green),
-              ('04', 'Mine', 'Scrypt proof-of-work completes the block. AI proof is part of the block identity via Merkle root.', S.pink),
-            ];
-            final cols = c.maxWidth > 800 ? 4 : 2;
-            final w = c.maxWidth / cols;
-            return Wrap(
-              children: [
-                for (final s in steps)
-                  SizedBox(
-                    width: w,
-                    child: Container(
-                      padding: const EdgeInsets.all(28),
-                      decoration: BoxDecoration(
-                        color: S.surface,
-                        border: Border.all(color: S.border, width: 0.25),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          GradText(s.$1, size: 48, weight: FontWeight.w800, colors: [s.$4, s.$4.withValues(alpha: 0.4)]),
-                          const SizedBox(height: 16),
-                          Text(s.$2, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 8),
-                          Text(s.$3, style: const TextStyle(fontSize: 13, color: S.text2, height: 1.6)),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            );
-          }),
-
-          // RPC
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 80, 24, 100),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 900),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SectionHeader('AI RPC Commands', 'Seven AI-powered commands built directly into the node.', center: false),
-                    Container(
-                      decoration: BoxDecoration(color: S.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: S.border, width: 0.5)),
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          color: S.surface2,
-                          child: const Row(children: [
-                            SizedBox(width: 260, child: Text('COMMAND', style: TextStyle(fontSize: 10.5, color: S.text3, letterSpacing: 1.2, fontWeight: FontWeight.w700))),
-                            Expanded(child: Text('DESCRIPTION', style: TextStyle(fontSize: 10.5, color: S.text3, letterSpacing: 1.2, fontWeight: FontWeight.w700))),
-                          ]),
-                        ),
-                        for (final c in [
-                          ('getaiinfo', 'AI subsystem status, Ollama connection, models'),
-                          ('getaichallenge', 'Current AI challenge for the next block'),
-                          ('getaiproof <hash>', 'Extract AI proof from a block'),
-                          ('estimateaifee [urgency]', 'AI fee estimation (low / normal / high)'),
-                          ('analyzaiblock <hash>', 'AI analysis of block content'),
-                          ('analyzaimempool', 'AI mempool congestion analysis'),
-                          ('analyzainetwork', 'AI network health report'),
-                        ])
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: S.border, width: 0.5))),
-                            child: Row(children: [
-                              SizedBox(width: 260, child: Text(c.$1, style: const TextStyle(fontFamily: 'monospace', fontSize: 13, color: S.green))),
-                              Expanded(child: Text(c.$2, style: const TextStyle(fontSize: 13.5, color: S.text2))),
-                            ]),
-                          ),
-                      ]),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const Footer(),
-        ],
-      ),
-    );
-  }
-}
-
-// ============================================================
-// DOWNLOAD
-// ============================================================
-class DownloadPage extends StatelessWidget {
-  const DownloadPage({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 80, 24, 0),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
-            child: Column(
-              children: [
-                const SectionHeader('Download ShardCoin', 'Get the node software, wallet, or build from source.'),
-                LayoutBuilder(builder: (ctx, c) {
-                  final cards = [
-                    ('ShardCoin Core', 'Full node daemon, CLI, transaction tool, and wallet. Linux aarch64. AI proof-of-work included.', 'Download v0.1.0', true, S.purple),
-                    ('ShardWallet', 'Non-custodial PWA wallet. BIP39 seed phrases, client-side signing, runs in any browser.', 'View on GitHub', false, S.green),
-                    ('Source Code', 'Build from source. Fork of Litecoin Core with AI proof-of-work and all features from genesis.', 'View on GitHub', false, S.blue),
-                  ];
-                  final cols = c.maxWidth > 800 ? 3 : 1;
-                  final gap = 16.0;
-                  final w = (c.maxWidth - gap * (cols - 1)) / cols;
-                  return Wrap(
-                    spacing: gap, runSpacing: gap,
-                    children: [
-                      for (final d in cards)
-                        SizedBox(
-                          width: w,
-                          child: Container(
-                            padding: const EdgeInsets.all(28),
-                            decoration: BoxDecoration(
-                              color: S.surface,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: S.border, width: 0.5),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: 40, height: 4,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(2),
-                                    gradient: LinearGradient(colors: [d.$5, d.$5.withValues(alpha: 0.2)]),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                Text(d.$1, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-                                const SizedBox(height: 10),
-                                Text(d.$2, style: const TextStyle(fontSize: 13.5, color: S.text2, height: 1.6)),
-                                const SizedBox(height: 20),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: d.$4
-                                      ? _gradBtn(d.$3)
-                                      : _outlineBtn(d.$3),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  );
-                }),
-                const SizedBox(height: 32),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: S.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: S.border, width: 0.5),
-                  ),
-                  child: const SelectableText(
-                    '# Quick start\n'
-                    '\$ tar xzf shardcoin-core-linux-aarch64.tar.gz && cd shardcoin-core\n\n'
-                    '# Start the node\n'
-                    '\$ ./shardcoind -daemon\n'
-                    '\$ ./shardcoin-cli getblockchaininfo\n\n'
-                    '# Mine with AI (requires Ollama)\n'
-                    '\$ ollama serve &\n'
-                    '\$ ./shardcoin-cli createwallet "main"\n'
-                    '\$ ./shardcoin-cli -generate 1\n\n'
-                    '# AI commands\n'
-                    '\$ ./shardcoin-cli getaiinfo\n'
-                    '\$ ./shardcoin-cli estimateaifee "normal"\n'
-                    '\$ ./shardcoin-cli analyzainetwork',
-                    style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: S.green, height: 1.8),
-                  ),
-                ),
-                const SizedBox(height: 100),
-                const Footer(),
-              ],
-            ),
-          ),
+  Widget build(BuildContext context) => _page([
+    const SizedBox(height: 72),
+    const Sec('How AI Mining Works', 'Four steps transform a standard block into an AI-verified unit of work.'),
+    Wrap2(minW: 220, children: [
+      for (final s in [
+        ('01', 'Challenge', 'Deterministic prompt from previous block hash and height.', C.purple),
+        ('02', 'Inference', 'Local Ollama processes the challenge through a language model.', C.blue),
+        ('03', 'Commit', '41-byte AIPR proof embedded in coinbase OP_RETURN.', C.green),
+        ('04', 'Mine', 'Scrypt PoW completes the block with AI proof in Merkle root.', C.pink),
+      ])
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: C.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: C.line, width: 0.5)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            ShaderMask(shaderCallback: (b) => LinearGradient(colors: [s.$4, s.$4.withValues(alpha: 0.3)]).createShader(b),
+              child: Text(s.$1, style: GoogleFonts.jetBrainsMono(fontSize: 40, fontWeight: FontWeight.w800, color: Colors.white))),
+            const SizedBox(height: 12),
+            Text(s.$2, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            Text(s.$3, style: GoogleFonts.inter(fontSize: 13, color: C.t2, height: 1.5)),
+          ]),
         ),
-      ),
-    );
-  }
+    ]),
+    const SizedBox(height: 72),
+    const Sec('AI RPC Commands', 'Seven AI-powered commands built directly into the node.'),
+    _table([
+      ('getaiinfo', 'AI subsystem status, Ollama connection, models'),
+      ('getaichallenge', 'Current AI challenge for the next block'),
+      ('getaiproof <hash>', 'Extract AI proof from a block'),
+      ('estimateaifee [urgency]', 'AI fee estimation (low / normal / high)'),
+      ('analyzaiblock <hash>', 'AI analysis of block content'),
+      ('analyzaimempool', 'AI mempool congestion analysis'),
+      ('analyzainetwork', 'AI network health report'),
+    ]),
+    const SizedBox(height: 80),
+    const Foot(),
+  ]);
 }
 
-// ============================================================
-// NETWORK
-// ============================================================
-class NetworkPage extends StatelessWidget {
-  const NetworkPage({super.key});
-  static const _p = [
-    ('Ticker', 'SHRD'), ('Algorithm', 'Scrypt + AI Proof-of-Work'),
-    ('Block Time', '2.5 minutes'), ('Max Supply', '~8,400,000 SHRD'),
-    ('Block Reward', '5 SHRD (10% decay / 100k blocks)'),
-    ('P2P Port', '7333'), ('RPC Port', '7332'),
-    ('Address Prefix', 'S (bech32: shrd1...)'), ('BIP44 Coin Type', '1000'),
-    ('P2PKH', '63'), ('P2SH', '5'), ('Bech32 HRP', 'shrd'),
-    ('WIF', '191'), ('Magic', '0xd3a2c4e7'),
-    ('BIP32 Public', '0x0488B21E'), ('BIP32 Private', '0x0488ADE4'),
-  ];
+Widget _table(List<(String, String)> rows) => Container(
+  decoration: BoxDecoration(color: C.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: C.line, width: 0.5)),
+  clipBehavior: Clip.antiAlias,
+  child: Column(children: [
+    Container(color: C.card2, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Row(children: [
+        SizedBox(width: 240, child: Text('COMMAND', style: GoogleFonts.inter(fontSize: 10, color: C.t3, letterSpacing: 1.2, fontWeight: FontWeight.w700))),
+        Expanded(child: Text('DESCRIPTION', style: GoogleFonts.inter(fontSize: 10, color: C.t3, letterSpacing: 1.2, fontWeight: FontWeight.w700))),
+      ])),
+    for (final r in rows)
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+        child: Row(children: [
+          SizedBox(width: 240, child: Text(r.$1, style: GoogleFonts.jetBrainsMono(fontSize: 13, color: C.green))),
+          Expanded(child: Text(r.$2, style: GoogleFonts.inter(fontSize: 13, color: C.t2))),
+        ]),
+      ),
+  ]),
+);
 
+// ===== DOWNLOAD =====
+class DlPage extends StatelessWidget {
+  const DlPage({super.key});
   @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 80, 24, 0),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SectionHeader('Network Parameters', 'Everything you need to integrate with ShardCoin.', center: false),
-                Container(
-                  decoration: BoxDecoration(color: S.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: S.border, width: 0.5)),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      color: S.surface2,
-                      child: const Row(children: [
-                        SizedBox(width: 180, child: Text('PARAMETER', style: TextStyle(fontSize: 10.5, color: S.text3, letterSpacing: 1.2, fontWeight: FontWeight.w700))),
-                        Expanded(child: Text('VALUE', style: TextStyle(fontSize: 10.5, color: S.text3, letterSpacing: 1.2, fontWeight: FontWeight.w700))),
-                      ]),
-                    ),
-                    for (final p in _p)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: S.border, width: 0.5))),
-                        child: Row(children: [
-                          SizedBox(width: 180, child: Text(p.$1, style: const TextStyle(fontSize: 13.5, color: S.text2))),
-                          Expanded(child: SelectableText(p.$2, style: const TextStyle(fontFamily: 'monospace', fontSize: 13.5))),
-                        ]),
-                      ),
-                  ]),
-                ),
-                const SizedBox(height: 100),
-                const Footer(),
-              ],
+  Widget build(BuildContext context) => _page([
+    const SizedBox(height: 72),
+    const Sec('Download ShardCoin', 'Get the node software, wallet, or build from source.'),
+    Wrap2(children: [
+      for (final d in [
+        ('ShardCoin Core', 'Full node, CLI, tx tool, wallet utility.\nLinux aarch64. AI PoW included.', 'Download v0.1.0', true, C.purple),
+        ('ShardWallet', 'Non-custodial PWA wallet.\nBIP39, client-side signing, any browser.', 'View on GitHub', false, C.green),
+        ('Source Code', 'Build from source. Litecoin Core fork\nwith AI PoW and all features from genesis.', 'View on GitHub', false, C.blue),
+      ])
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: C.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: C.line, width: 0.5)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(width: 36, height: 3, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), gradient: LinearGradient(colors: [d.$5, d.$5.withValues(alpha: 0.2)]))),
+            const SizedBox(height: 20),
+            Text(d.$1, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text(d.$2, style: GoogleFonts.inter(fontSize: 13, color: C.t2, height: 1.55)),
+            const SizedBox(height: 20),
+            Container(
+              width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 11),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(9),
+                gradient: d.$4 ? const LinearGradient(colors: [C.purple, C.green]) : null,
+                color: d.$4 ? null : C.card2, border: d.$4 ? null : Border.all(color: C.line2)),
+              child: Text(d.$3, textAlign: TextAlign.center, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: d.$4 ? Colors.black : C.t1)),
             ),
-          ),
+          ]),
         ),
-      ),
-    );
-  }
+    ]),
+    const SizedBox(height: 28),
+    Container(
+      width: double.infinity, padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: C.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: C.line, width: 0.5)),
+      child: SelectableText(
+        '# Quick start\n\$ tar xzf shardcoin-core-linux-aarch64.tar.gz && cd shardcoin-core\n\n'
+        '# Start the node\n\$ ./shardcoind -daemon\n\$ ./shardcoin-cli getblockchaininfo\n\n'
+        '# Mine with AI (requires Ollama)\n\$ ollama serve &\n\$ ./shardcoin-cli createwallet "main"\n\$ ./shardcoin-cli -generate 1',
+        style: GoogleFonts.jetBrainsMono(fontSize: 12.5, color: C.green, height: 1.7)),
+    ),
+    const SizedBox(height: 80),
+    const Foot(),
+  ]);
 }
 
-// ============================================================
-// EXPLORER
-// ============================================================
-class ExplorerPage extends StatefulWidget {
-  const ExplorerPage({super.key});
+// ===== NETWORK =====
+class NetPage extends StatelessWidget {
+  const NetPage({super.key});
   @override
-  State<ExplorerPage> createState() => _ExplorerState();
+  Widget build(BuildContext context) => _page([
+    const SizedBox(height: 72),
+    const Sec('Network Parameters', 'Everything you need to integrate with ShardCoin.'),
+    _table([
+      ('Ticker', 'SHRD'), ('Algorithm', 'Scrypt + AI Proof-of-Work'),
+      ('Block Time', '2.5 minutes'), ('Max Supply', '~8,400,000 SHRD'),
+      ('Block Reward', '5 SHRD (10% decay / 100k blocks)'),
+      ('P2P Port', '7333'), ('RPC Port', '7332'),
+      ('Address Prefix', 'S (bech32: shrd1...)'), ('BIP44 Coin Type', '1000'),
+      ('P2PKH', '63'), ('P2SH', '5'), ('Bech32 HRP', 'shrd'),
+      ('WIF', '191'), ('Magic', '0xd3a2c4e7'),
+      ('BIP32 Public', '0x0488B21E'), ('BIP32 Private', '0x0488ADE4'),
+    ]),
+    const SizedBox(height: 80),
+    const Foot(),
+  ]);
 }
 
-class _ExplorerState extends State<ExplorerPage> {
-  List<dynamic> _blocks = [];
-  Map<String, dynamic>? _info;
-  Map<String, dynamic>? _block;
-  Map<String, dynamic>? _tx;
-  bool _loading = true;
-  final _search = TextEditingController();
-  Timer? _timer;
+// ===== EXPLORER =====
+class ExpPage extends StatefulWidget {
+  const ExpPage({super.key});
+  @override
+  State<ExpPage> createState() => _ExpState();
+}
+
+class _ExpState extends State<ExpPage> {
+  List<dynamic> blocks = [];
+  Map<String, dynamic>? info, blk, tx;
+  bool loading = true;
+  final sc = TextEditingController();
+  Timer? t;
 
   @override
-  void initState() { super.initState(); _load(); _timer = Timer.periodic(const Duration(seconds: 30), (_) => _load()); }
+  void initState() { super.initState(); _load(); t = Timer.periodic(const Duration(seconds: 30), (_) { if (blk == null && tx == null) _load(); }); }
   @override
-  void dispose() { _timer?.cancel(); super.dispose(); }
+  void dispose() { t?.cancel(); super.dispose(); }
 
   Future<void> _load() async {
     try {
       final r1 = await http.get(Uri.parse('http://node.local:4402/api/info'));
       final r2 = await http.get(Uri.parse('http://node.local:4402/api/blocks'));
-      if (mounted) setState(() { _info = json.decode(r1.body); _blocks = json.decode(r2.body); _loading = false; _block = null; _tx = null; });
-    } catch (_) { if (mounted) setState(() => _loading = false); }
+      if (mounted) setState(() { info = json.decode(r1.body); blocks = json.decode(r2.body); loading = false; blk = null; tx = null; });
+    } catch (_) { if (mounted) setState(() => loading = false); }
   }
-
-  Future<void> _loadBlock(String h) async {
-    try {
-      final r = await http.get(Uri.parse('http://node.local:4402/api/block/$h'));
-      if (mounted) setState(() { _block = json.decode(r.body); _tx = null; });
-    } catch (_) {}
+  Future<void> _blk(String h) async {
+    try { final r = await http.get(Uri.parse('http://node.local:4402/api/block/$h')); if (mounted) setState(() { blk = json.decode(r.body); tx = null; }); } catch (_) {}
   }
-
-  Future<void> _loadTx(String id) async {
-    try {
-      final r = await http.get(Uri.parse('http://node.local:4402/api/tx/$id'));
-      if (mounted) setState(() => _tx = json.decode(r.body));
-    } catch (_) {}
+  Future<void> _tx(String id) async {
+    try { final r = await http.get(Uri.parse('http://node.local:4402/api/tx/$id')); if (mounted) setState(() => tx = json.decode(r.body)); } catch (_) {}
   }
-
-  void _doSearch() {
-    final q = _search.text.trim();
+  void _search() {
+    final q = sc.text.trim();
     if (q.isEmpty) { _load(); return; }
-    if (RegExp(r'^\d+$').hasMatch(q)) {
-      http.get(Uri.parse('http://node.local:4402/api/blockhash/$q')).then((r) {
-        final d = json.decode(r.body);
-        if (d['hash'] != null) _loadBlock(d['hash']);
-      });
-    } else if (q.length == 64 && RegExp(r'^[a-f0-9]+$').hasMatch(q)) {
-      _loadBlock(q);
-    }
+    if (RegExp(r'^\d+$').hasMatch(q)) http.get(Uri.parse('http://node.local:4402/api/blockhash/$q')).then((r) { final d = json.decode(r.body); if (d['hash'] != null) _blk(d['hash']); });
+    else if (q.length == 64 && RegExp(r'^[a-f0-9]+$').hasMatch(q)) _blk(q);
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1000),
-          child: Column(
-            children: [
-              // Search bar
-              Row(children: [
-                Expanded(
-                  child: TextField(
-                    controller: _search,
-                    onSubmitted: (_) => _doSearch(),
-                    style: const TextStyle(fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText: 'Search by block height, hash, or txid...',
-                      hintStyle: const TextStyle(color: S.text3, fontSize: 14),
-                      filled: true, fillColor: S.surface,
-                      prefixIcon: const Icon(Icons.search, color: S.text3, size: 20),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: S.border)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: S.border, width: 0.5)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: S.purple)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _gradBtn('Search', small: true, onTap: _doSearch),
-                const SizedBox(width: 8),
-                Container(
-                  decoration: BoxDecoration(color: S.surface, borderRadius: BorderRadius.circular(8), border: Border.all(color: S.border, width: 0.5)),
-                  child: IconButton(icon: const Icon(Icons.refresh, color: S.text3, size: 18), onPressed: _load, splashRadius: 20),
-                ),
-              ]),
-              const SizedBox(height: 20),
-              // Content
-              Expanded(
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator(color: S.purple, strokeWidth: 2))
-                    : SingleChildScrollView(child: _tx != null ? _txView() : _block != null ? _blockView() : _homeView()),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _row(String label, String value, {VoidCallback? onTap, Color? valueColor}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 16),
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: S.border, width: 0.5))),
-      child: Row(children: [
-        SizedBox(width: 150, child: Text(label, style: const TextStyle(fontSize: 13, color: S.text3))),
-        Expanded(
-          child: MouseRegion(
-            cursor: onTap != null ? SystemMouseCursors.click : SystemMouseCursors.text,
-            child: GestureDetector(
-              onTap: onTap,
-              child: SelectableText(value, style: TextStyle(fontSize: 13, fontFamily: 'monospace', color: valueColor ?? (onTap != null ? S.purple : S.text))),
-            ),
-          ),
-        ),
+  Widget build(BuildContext context) => Center(child: ConstrainedBox(
+    constraints: const BoxConstraints(maxWidth: 960),
+    child: Padding(padding: const EdgeInsets.fromLTRB(20, 16, 20, 0), child: Column(children: [
+      // Search
+      Row(children: [
+        Expanded(child: TextField(controller: sc, onSubmitted: (_) => _search(), style: GoogleFonts.inter(fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'Search by block height, hash, or txid...', hintStyle: GoogleFonts.inter(color: C.t3, fontSize: 13),
+            filled: true, fillColor: C.card, prefixIcon: const Icon(Icons.search, color: C.t3, size: 18),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: C.line)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: C.line, width: 0.5)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: C.purple)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12), isDense: true,
+          ))),
+        const SizedBox(width: 8),
+        Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9), decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), gradient: const LinearGradient(colors: [C.purple, C.green])),
+          child: GestureDetector(onTap: _search, child: Text('Search', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black)))),
+        const SizedBox(width: 8),
+        Container(decoration: BoxDecoration(color: C.card, borderRadius: BorderRadius.circular(8), border: Border.all(color: C.line, width: 0.5)),
+          child: IconButton(icon: const Icon(Icons.refresh, color: C.t3, size: 18), onPressed: _load, splashRadius: 18, padding: const EdgeInsets.all(8), constraints: const BoxConstraints())),
       ]),
-    );
-  }
+      const SizedBox(height: 16),
+      Expanded(child: loading
+        ? const Center(child: CircularProgressIndicator(color: C.purple, strokeWidth: 2))
+        : SingleChildScrollView(child: tx != null ? _txV() : blk != null ? _blkV() : _homeV())),
+    ])),
+  ));
 
-  Widget _card(String title, List<Widget> children, {Color accent = S.green}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(color: S.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: S.border, width: 0.5)),
-      clipBehavior: Clip.antiAlias,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-          decoration: BoxDecoration(color: S.surface2, border: Border(bottom: BorderSide(color: S.border, width: 0.5))),
-          child: Row(children: [
-            Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: accent)),
-            const SizedBox(width: 10),
-            Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-          ]),
-        ),
-        ...children,
-      ]),
-    );
-  }
+  Widget _kv(String k, String v, {VoidCallback? tap, Color? vc}) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+    decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+    child: Row(children: [
+      SizedBox(width: 140, child: Text(k, style: GoogleFonts.inter(fontSize: 12, color: C.t3))),
+      Expanded(child: GestureDetector(onTap: tap, child: MouseRegion(cursor: tap != null ? SystemMouseCursors.click : SystemMouseCursors.text,
+        child: SelectableText(v, style: GoogleFonts.jetBrainsMono(fontSize: 12, color: vc ?? (tap != null ? C.purple : C.t1)))))),
+    ]),
+  );
 
-  Widget _homeView() {
-    return Column(children: [
-      if (_info != null) _card('Network Overview', [
-        if (_info!['blocks'] != null) _row('Height', '${_info!['blocks']}'),
-        if (_info!['difficulty'] != null) _row('Difficulty', '${_info!['difficulty']}'),
-        if (_info!['chain'] != null) _row('Chain', '${_info!['chain']}'),
-        if (_info!['bestblockhash'] != null) _row('Best Block', '${_info!['bestblockhash']}'),
-        if (_info!['ai'] != null) ...[
-          _row('AI Proof', _info!['ai']['enabled'] == true ? 'Enabled' : 'Disabled', valueColor: _info!['ai']['enabled'] == true ? S.green : S.text3),
-          _row('Ollama', _info!['ai']['ollama_connected'] == true ? 'Connected' : 'Offline', valueColor: _info!['ai']['ollama_connected'] == true ? S.green : S.pink),
-        ],
-      ]),
-      _card('Recent Blocks', [
-        for (final b in _blocks)
-          InkWell(
-            onTap: () => _loadBlock(b['hash']),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: S.border, width: 0.5))),
-              child: Row(children: [
-                SizedBox(width: 65, child: Text('#${b['height']}', style: const TextStyle(fontWeight: FontWeight.w700, color: S.green, fontFamily: 'monospace', fontSize: 13))),
-                Expanded(child: Text('${b['hash']}'.substring(0, 28) + '...', style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: S.text3), overflow: TextOverflow.ellipsis)),
-                SizedBox(width: 80, child: Text(DateTime.fromMillisecondsSinceEpoch(b['time'] * 1000).toLocal().toString().substring(11, 19), style: const TextStyle(fontSize: 12, color: S.text3, fontFamily: 'monospace'))),
-                SizedBox(width: 50, child: Text('${b['tx']} tx', textAlign: TextAlign.right, style: const TextStyle(fontSize: 12, fontFamily: 'monospace'))),
-                if (b['ai'] == true) Container(
-                  margin: const EdgeInsets.only(left: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(gradient: const LinearGradient(colors: S.grad2), borderRadius: BorderRadius.circular(10)),
-                  child: const Text('AI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.black)),
-                ),
-              ]),
-            ),
-          ),
-      ], accent: S.blue),
-    ]);
-  }
+  Widget _sec(String title, List<Widget> ch, {Color a = C.green}) => Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    decoration: BoxDecoration(color: C.card, borderRadius: BorderRadius.circular(10), border: Border.all(color: C.line, width: 0.5)),
+    clipBehavior: Clip.antiAlias,
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(padding: const EdgeInsets.fromLTRB(14, 12, 14, 10), decoration: BoxDecoration(color: C.card2, border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+        child: Row(children: [Container(width: 3, height: 12, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: a)), const SizedBox(width: 10),
+          Text(title, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600))])),
+      ...ch,
+    ]),
+  );
 
-  Widget _blockView() {
-    final b = _block!;
-    return Column(children: [
-      Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: _load, icon: const Icon(Icons.arrow_back_rounded, size: 16), label: const Text('Back to blocks', style: TextStyle(fontSize: 13)))),
-      const SizedBox(height: 8),
-      _card('Block #${b['height'] ?? '?'}', [
-        _row('Hash', '${b['hash']}'),
-        _row('Previous', b['previousblockhash'] ?? 'Genesis', onTap: b['previousblockhash'] != null ? () => _loadBlock(b['previousblockhash']) : null),
-        _row('Time', DateTime.fromMillisecondsSinceEpoch(b['time'] * 1000).toLocal().toString()),
-        _row('Difficulty', '${b['difficulty']}'),
-        _row('Nonce', '${b['nonce']}'),
-        _row('Transactions', '${(b['tx'] as List?)?.length ?? 0}'),
-        _row('Size', '${b['size']} bytes'),
-        _row('Weight', '${b['weight']}'),
-      ]),
-      if (b['ai_proof'] != null) _card('AI Proof', [
-        _row('Status', 'Verified', valueColor: S.green),
-        _row('Response Hash', '${b['ai_proof']['response_hash']}'),
-        _row('Model Tag', '${b['ai_proof']['model_tag']}'),
-      ], accent: S.purple),
-      if (b['tx'] != null) _card('Transactions (${(b['tx'] as List).length})', [
-        for (final txid in b['tx'])
-          InkWell(
-            onTap: () => _loadTx(txid),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Text(txid, style: const TextStyle(fontFamily: 'monospace', fontSize: 13, color: S.purple)),
-            ),
-          ),
-      ], accent: S.blue),
-    ]);
-  }
-
-  Widget _txView() {
-    final tx = _tx!;
-    return Column(children: [
-      Align(alignment: Alignment.centerLeft, child: TextButton.icon(
-        onPressed: () => setState(() => _tx = null),
-        icon: const Icon(Icons.arrow_back_rounded, size: 16), label: const Text('Back to block', style: TextStyle(fontSize: 13)),
+  Widget _homeV() => Column(children: [
+    if (info != null) _sec('Network', [
+      if (info!['blocks'] != null) _kv('Height', '${info!['blocks']}'),
+      if (info!['difficulty'] != null) _kv('Difficulty', '${info!['difficulty']}'),
+      if (info!['chain'] != null) _kv('Chain', '${info!['chain']}'),
+      if (info!['bestblockhash'] != null) _kv('Best Block', '${info!['bestblockhash']}'),
+      if (info!['ai'] != null) ...[
+        _kv('AI Proof', info!['ai']['enabled'] == true ? 'Enabled' : 'Disabled', vc: info!['ai']['enabled'] == true ? C.green : C.t3),
+        _kv('Ollama', info!['ai']['ollama_connected'] == true ? 'Connected' : 'Offline', vc: info!['ai']['ollama_connected'] == true ? C.green : C.pink),
+      ],
+    ]),
+    _sec('Recent Blocks', [
+      for (final b in blocks) InkWell(onTap: () => _blk(b['hash']), child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+        child: Row(children: [
+          SizedBox(width: 60, child: Text('#${b['height']}', style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.w700, color: C.green))),
+          Expanded(child: Text('${b['hash']}'.substring(0, 24) + '...', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t3), overflow: TextOverflow.ellipsis)),
+          SizedBox(width: 70, child: Text(DateTime.fromMillisecondsSinceEpoch(b['time'] * 1000).toLocal().toString().substring(11, 19), style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t3))),
+          SizedBox(width: 40, child: Text('${b['tx']} tx', textAlign: TextAlign.right, style: GoogleFonts.jetBrainsMono(fontSize: 11))),
+          if (b['ai'] == true) Container(margin: const EdgeInsets.only(left: 6), padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(gradient: const LinearGradient(colors: [C.purple, C.green]), borderRadius: BorderRadius.circular(8)),
+            child: Text('AI', style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.black))),
+        ]),
       )),
-      const SizedBox(height: 8),
-      _card('Transaction', [
-        _row('TXID', '${tx['txid']}'),
-        _row('Size', '${tx['size']} bytes'),
-        _row('Version', '${tx['version']}'),
-        _row('Locktime', '${tx['locktime']}'),
-        if (tx['blockhash'] != null) _row('Block', '${tx['blockhash']}', onTap: () => _loadBlock(tx['blockhash'])),
-      ]),
-      if (tx['vin'] != null) _card('Inputs (${(tx['vin'] as List).length})', [
-        for (final i in tx['vin'])
-          _row(i['coinbase'] != null ? 'Coinbase' : '${i['txid']}'.substring(0, 16) + '...', i['coinbase'] != null ? '${i['coinbase']}'.substring(0, 40) + '...' : 'vout:${i['vout']}'),
-      ], accent: S.purple),
-      if (tx['vout'] != null) _card('Outputs (${(tx['vout'] as List).length})', [
-        for (final o in tx['vout'])
-          _row(o['scriptPubKey']?['address'] ?? o['scriptPubKey']?['type'] ?? 'unknown', '${o['value']} SHRD', valueColor: S.green),
-      ], accent: S.green),
-    ]);
-  }
+    ], a: C.blue),
+  ]);
+
+  Widget _blkV() { final b = blk!; return Column(children: [
+    Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: _load, icon: const Icon(Icons.arrow_back_rounded, size: 14), label: Text('Back', style: GoogleFonts.inter(fontSize: 12)))),
+    _sec('Block #${b['height'] ?? '?'}', [
+      _kv('Hash', '${b['hash']}'), _kv('Previous', b['previousblockhash'] ?? 'Genesis', tap: b['previousblockhash'] != null ? () => _blk(b['previousblockhash']) : null),
+      _kv('Time', DateTime.fromMillisecondsSinceEpoch(b['time'] * 1000).toLocal().toString()),
+      _kv('Difficulty', '${b['difficulty']}'), _kv('Nonce', '${b['nonce']}'),
+      _kv('Transactions', '${(b['tx'] as List?)?.length ?? 0}'), _kv('Size', '${b['size']} bytes'), _kv('Weight', '${b['weight']}'),
+    ]),
+    if (b['ai_proof'] != null) _sec('AI Proof', [
+      _kv('Status', 'Verified', vc: C.green), _kv('Response Hash', '${b['ai_proof']['response_hash']}'), _kv('Model Tag', '${b['ai_proof']['model_tag']}'),
+    ], a: C.purple),
+    if (b['tx'] != null) _sec('Transactions', [
+      for (final id in b['tx']) InkWell(onTap: () => _tx(id), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Text(id, style: GoogleFonts.jetBrainsMono(fontSize: 12, color: C.purple)))),
+    ], a: C.blue),
+  ]); }
+
+  Widget _txV() { final t = tx!; return Column(children: [
+    Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => setState(() => tx = null), icon: const Icon(Icons.arrow_back_rounded, size: 14), label: Text('Back', style: GoogleFonts.inter(fontSize: 12)))),
+    _sec('Transaction', [
+      _kv('TXID', '${t['txid']}'), _kv('Size', '${t['size']} bytes'), _kv('Version', '${t['version']}'), _kv('Locktime', '${t['locktime']}'),
+      if (t['blockhash'] != null) _kv('Block', '${t['blockhash']}', tap: () => _blk(t['blockhash'])),
+    ]),
+    if (t['vin'] != null) _sec('Inputs (${(t['vin'] as List).length})', [
+      for (final i in t['vin']) _kv(i['coinbase'] != null ? 'Coinbase' : '${i['txid']}'.substring(0, 16) + '...', i['coinbase'] != null ? '${i['coinbase']}'.substring(0, 40) + '...' : 'vout:${i['vout']}'),
+    ], a: C.purple),
+    if (t['vout'] != null) _sec('Outputs (${(t['vout'] as List).length})', [
+      for (final o in t['vout']) _kv(o['scriptPubKey']?['address'] ?? o['scriptPubKey']?['type'] ?? '-', '${o['value']} SHRD', vc: C.green),
+    ], a: C.green),
+  ]); }
 }
