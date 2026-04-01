@@ -67,10 +67,64 @@ const server = http.createServer((req, res) => {
         } else if (url.pathname.startsWith('/api/block/')) {
             const hash = url.pathname.split('/')[3];
             if (!/^[a-f0-9]{64}$/.test(hash)) { res.writeHead(400); res.end('{"error":"invalid hash"}'); return; }
-            const block = rpc('getblock', hash, 1);
+            const block = rpc('getblock', hash, 2); // verbosity 2 = include full tx data
             if (block) {
                 const aiProof = rpc('getaiproof', hash);
                 if (aiProof?.has_proof) block.ai_proof = aiProof;
+                // Resolve input addresses and amounts for each transaction
+                let totalOut = 0, totalFees = 0;
+                for (const tx of (block.tx || [])) {
+                    let inputTotal = 0;
+                    let outputTotal = 0;
+                    tx.senders = [];
+                    tx.receivers = [];
+                    tx.is_coinbase = false;
+                    // Resolve inputs
+                    for (const vin of (tx.vin || [])) {
+                        if (vin.coinbase) {
+                            tx.is_coinbase = true;
+                            tx.senders.push({ address: 'Block Reward (Coinbase)', amount: 0, coinbase: vin.coinbase });
+                        } else if (vin.txid) {
+                            // Look up the previous tx output to get sender address and amount
+                            const prevTx = rpc('getrawtransaction', vin.txid, 1);
+                            if (prevTx && prevTx.vout && prevTx.vout[vin.vout]) {
+                                const prevOut = prevTx.vout[vin.vout];
+                                const addr = prevOut.scriptPubKey?.addresses?.[0] || prevOut.scriptPubKey?.address || 'unknown';
+                                const amt = prevOut.value || 0;
+                                inputTotal += amt;
+                                tx.senders.push({ address: addr, amount: amt, txid: vin.txid, vout: vin.vout });
+                            } else {
+                                tx.senders.push({ address: 'unknown', amount: 0, txid: vin.txid, vout: vin.vout });
+                            }
+                        }
+                    }
+                    // Process outputs
+                    for (const vout of (tx.vout || [])) {
+                        const addr = vout.scriptPubKey?.addresses?.[0] || vout.scriptPubKey?.address || null;
+                        const type = vout.scriptPubKey?.type || 'unknown';
+                        const amt = vout.value || 0;
+                        outputTotal += amt;
+                        const entry = { address: addr, amount: amt, type: type, n: vout.n };
+                        // Detect OP_RETURN data
+                        if (type === 'nulldata' && vout.scriptPubKey?.hex) {
+                            entry.op_return = true;
+                            entry.data_hex = vout.scriptPubKey.hex;
+                            // Check if it's an AI proof
+                            if (vout.scriptPubKey.hex.includes('41495052')) {
+                                entry.is_ai_proof = true;
+                            }
+                        }
+                        tx.receivers.push(entry);
+                    }
+                    tx.input_total = inputTotal;
+                    tx.output_total = outputTotal;
+                    tx.fee = tx.is_coinbase ? 0 : Math.max(0, inputTotal - outputTotal);
+                    totalOut += outputTotal;
+                    if (!tx.is_coinbase) totalFees += tx.fee;
+                }
+                block.total_output = totalOut;
+                block.total_fees = totalFees;
+                block.block_reward = block.tx?.[0]?.output_total || 0;
             }
             res.end(JSON.stringify(block || { error: 'Block not found' }));
         } else if (url.pathname.startsWith('/api/blockhash/')) {

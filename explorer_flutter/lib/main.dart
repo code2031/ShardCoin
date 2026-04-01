@@ -416,43 +416,58 @@ class _ExplorerState extends State<Explorer> {
     ),
   );
 
+  Widget _tag(String text, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+    decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4)),
+    child: Text(text, style: GoogleFonts.inter(fontSize: 9, color: color, fontWeight: FontWeight.w700)),
+  );
+
+  Widget _addr(String? address, {double size = 11}) => MouseRegion(
+    cursor: address != null && address != 'unknown' && !address.startsWith('Block') ? SystemMouseCursors.click : SystemMouseCursors.text,
+    child: GestureDetector(
+      onTap: address != null && address != 'unknown' && !address.startsWith('Block') ? () => _loadAddr(address) : null,
+      child: Text(address ?? 'unknown', style: GoogleFonts.jetBrainsMono(fontSize: size,
+        color: address != null && address != 'unknown' && !address.startsWith('Block') ? C.purple : C.t2), overflow: TextOverflow.ellipsis),
+    ),
+  );
+
   Widget _blockView() {
     final b = blk!;
     final txList = b['tx'] as List? ?? [];
     return Column(children: [
       _back(() { _pop(); setState(() { blk = null; txn = null; }); }),
 
-      // Block header
+      // Block summary
       _section('Block #${b['height'] ?? '?'}', [
         _kv('Hash', '${b['hash']}'),
         _kv('Confirmations', '${b['confirmations'] ?? '-'}', vc: C.green),
+        _kv('Timestamp', DateTime.fromMillisecondsSinceEpoch(b['time'] * 1000).toLocal().toString()),
+        _kv('Transactions', '${txList.length}'),
+        if (b['block_reward'] != null) _kv('Block Reward', '${b['block_reward']} SHRD', vc: C.green),
+        if (b['total_fees'] != null) _kv('Total Fees', '${b['total_fees']} SHRD'),
+        if (b['total_output'] != null) _kv('Total Output', '${b['total_output']} SHRD'),
+        _kv('Difficulty', '${b['difficulty']}'),
+        _kv('Size', '${b['size']} bytes'),
+        _kv('Weight', '${b['weight']} WU'),
+        _kv('Nonce', '${b['nonce']}'),
+        _kv('Bits', '${b['bits'] ?? '-'}'),
+        _kv('Merkle Root', '${b['merkleroot'] ?? '-'}'),
+        _kv('Version', '0x${(b['version'] as int?)?.toRadixString(16) ?? '-'}'),
+        _kv('Chain Work', '${b['chainwork'] ?? '-'}'),
         _kv('Previous Block', b['previousblockhash'] ?? 'Genesis',
           tap: b['previousblockhash'] != null ? () => _loadBlock(b['previousblockhash']) : null),
         if (b['nextblockhash'] != null)
           _kv('Next Block', '${b['nextblockhash']}', tap: () => _loadBlock(b['nextblockhash'])),
-        _kv('Timestamp', DateTime.fromMillisecondsSinceEpoch(b['time'] * 1000).toLocal().toString()),
-        _kv('Difficulty', '${b['difficulty']}'),
-        _kv('Bits', '${b['bits'] ?? '-'}'),
-        _kv('Nonce', '${b['nonce']}'),
-        _kv('Size', '${b['size']} bytes'),
-        _kv('Stripped Size', '${b['strippedsize'] ?? '-'} bytes'),
-        _kv('Weight', '${b['weight']} WU'),
-        _kv('Transactions', '${txList.length}'),
-        _kv('Merkle Root', '${b['merkleroot'] ?? '-'}'),
-        _kv('Version', '0x${(b['version'] as int?)?.toRadixString(16) ?? '-'}'),
-        _kv('Chain Work', '${b['chainwork'] ?? '-'}'),
-        _kv('Median Time', b['mediantime'] != null ? DateTime.fromMillisecondsSinceEpoch(b['mediantime'] * 1000).toLocal().toString() : '-'),
       ]),
 
-      // AI Proof (if present)
+      // AI Proof
       if (b['ai_proof'] != null) _section('AI Proof', [
         _kv('Status', 'Verified', vc: C.green),
-        _kv('Version', '${b['ai_proof']['version'] ?? 1}'),
         _kv('Response Hash', '${b['ai_proof']['response_hash']}'),
         _kv('Model Tag', '${b['ai_proof']['model_tag']}'),
       ], accent: C.purple),
 
-      // AI Block Analysis (auto-loaded)
+      // AI Block Analysis
       if (aiBlockAnalysis == null && info?['ai']?['ollama_connected'] == true)
         Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: C.purple, strokeWidth: 2)),
@@ -461,27 +476,115 @@ class _ExplorerState extends State<Explorer> {
         ])),
       _aiCard('AI Block Analysis', aiBlockAnalysis, accent: C.purple),
 
-      // Transactions
-      if (txList.isNotEmpty) _section('Transactions (${txList.length})', [
-        for (var i = 0; i < txList.length; i++)
-          InkWell(
-            onTap: () => _loadTx(txList[i]),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
-              child: Row(children: [
-                SizedBox(width: 28, child: Text('$i', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t3))),
-                Expanded(child: Text(txList[i], style: GoogleFonts.jetBrainsMono(fontSize: 12, color: C.purple))),
-                if (i == 0) Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(color: C.green.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4)),
-                  child: Text('coinbase', style: GoogleFonts.inter(fontSize: 10, color: C.green, fontWeight: FontWeight.w600)),
-                ),
-              ]),
-            ),
-          ),
-      ], accent: C.blue),
+      // Full transaction details
+      for (var i = 0; i < txList.length; i++) _txCard(txList[i], i),
     ]);
+  }
+
+  Widget _txCard(dynamic tx, int index) {
+    final senders = tx['senders'] as List? ?? [];
+    final receivers = tx['receivers'] as List? ?? [];
+    final isCoinbase = tx['is_coinbase'] == true;
+    final txid = tx['txid'] ?? '';
+    final fee = tx['fee'] ?? 0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(color: C.card, borderRadius: BorderRadius.circular(10), border: Border.all(color: C.line, width: 0.5)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Tx header
+        Container(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+          decoration: BoxDecoration(color: C.card2, border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+          child: Row(children: [
+            Container(width: 3, height: 12, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: isCoinbase ? C.green : C.blue)),
+            const SizedBox(width: 10),
+            Text('TX #$index', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
+            const SizedBox(width: 8),
+            if (isCoinbase) _tag('COINBASE', C.green),
+            if (!isCoinbase && fee > 0) ...[const SizedBox(width: 6), _tag('FEE: $fee SHRD', C.blue)],
+            const Spacer(),
+            MouseRegion(cursor: SystemMouseCursors.click, child: GestureDetector(
+              onTap: () => _loadTx(txid),
+              child: Text('View Full', style: GoogleFonts.inter(fontSize: 11, color: C.purple, fontWeight: FontWeight.w500)),
+            )),
+          ]),
+        ),
+        // TXID
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+          child: Row(children: [
+            Text('TXID  ', style: GoogleFonts.inter(fontSize: 10, color: C.t3, fontWeight: FontWeight.w600)),
+            Expanded(child: SelectableText(txid, style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t2))),
+          ]),
+        ),
+        // Senders -> Receivers layout
+        IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          // FROM column
+          Expanded(child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: const BoxDecoration(border: Border(right: BorderSide(color: C.line, width: 0.5))),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                const Icon(Icons.arrow_upward_rounded, size: 12, color: C.pink),
+                const SizedBox(width: 4),
+                Text('FROM', style: GoogleFonts.inter(fontSize: 10, color: C.t3, letterSpacing: 1, fontWeight: FontWeight.w700)),
+              ]),
+              const SizedBox(height: 8),
+              for (final s in senders) Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  _addr(s['address']),
+                  if (!isCoinbase && s['amount'] != null && s['amount'] != 0)
+                    Text('${s['amount']} SHRD', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: C.pink)),
+                ]),
+              ),
+            ]),
+          )),
+          // Arrow
+          Container(
+            width: 32,
+            alignment: Alignment.center,
+            child: const Icon(Icons.arrow_forward_rounded, size: 16, color: C.t3),
+          ),
+          // TO column
+          Expanded(child: Container(
+            padding: const EdgeInsets.all(10),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                const Icon(Icons.arrow_downward_rounded, size: 12, color: C.green),
+                const SizedBox(width: 4),
+                Text('TO', style: GoogleFonts.inter(fontSize: 10, color: C.t3, letterSpacing: 1, fontWeight: FontWeight.w700)),
+              ]),
+              const SizedBox(height: 8),
+              for (final r in receivers) Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Expanded(child: r['op_return'] == true
+                      ? Row(children: [
+                          _tag(r['is_ai_proof'] == true ? 'AI PROOF' : 'OP_RETURN', r['is_ai_proof'] == true ? C.purple : C.t3),
+                          if (r['data_hex'] != null) ...[
+                            const SizedBox(width: 4),
+                            Expanded(child: Text('${r['data_hex']}'.substring(0, (r['data_hex'] as String).length.clamp(0, 24)) + '...',
+                              style: GoogleFonts.jetBrainsMono(fontSize: 9, color: C.t3), overflow: TextOverflow.ellipsis)),
+                          ],
+                        ])
+                      : _addr(r['address'])),
+                  ]),
+                  if (r['amount'] != null && r['amount'] != 0)
+                    Text('${r['amount']} SHRD', style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w600, color: C.green)),
+                  if (r['type'] != null && r['type'] != 'nulldata')
+                    Text(r['type'], style: GoogleFonts.inter(fontSize: 9, color: C.t3)),
+                ]),
+              ),
+            ]),
+          )),
+        ])),
+      ]),
+    );
   }
 
   Widget _txView() {
