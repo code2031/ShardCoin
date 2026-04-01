@@ -83,6 +83,40 @@ const server = http.createServer((req, res) => {
             if (!/^[a-f0-9]{64}$/.test(txid)) { res.writeHead(400); res.end('{"error":"invalid txid"}'); return; }
             const tx = rpc('getrawtransaction', txid, 1);
             res.end(JSON.stringify(tx || { error: 'Transaction not found' }));
+        } else if (url.pathname.startsWith('/api/address/')) {
+            const addr = url.pathname.split('/')[3];
+            if (!addr || addr.length < 10 || addr.length > 100) { res.writeHead(400); res.end('{"error":"invalid address"}'); return; }
+            // Scan UTXO set for this address
+            const utxos = rpc('scantxoutset', 'start', JSON.stringify([{desc: 'addr(' + addr + ')', range: 10000}]));
+            if (utxos && utxos.success) {
+                const result = {
+                    address: addr,
+                    balance: utxos.total_amount || 0,
+                    utxo_count: utxos.unspents ? utxos.unspents.length : 0,
+                    utxos: (utxos.unspents || []).map(u => ({
+                        txid: u.txid, vout: u.vout, amount: u.amount,
+                        height: u.height, scriptPubKey: u.scriptPubKey,
+                    })),
+                };
+                // For each UTXO, get the full tx to list transactions
+                const txids = new Set();
+                const txs = [];
+                for (const u of result.utxos) {
+                    if (!txids.has(u.txid)) {
+                        txids.add(u.txid);
+                        const tx = rpc('getrawtransaction', u.txid, 1);
+                        if (tx) txs.push({
+                            txid: tx.txid, blockhash: tx.blockhash,
+                            blocktime: tx.blocktime, size: tx.size,
+                            vout_index: u.vout, amount: u.amount,
+                        });
+                    }
+                }
+                result.transactions = txs;
+                res.end(JSON.stringify(result));
+            } else {
+                res.end(JSON.stringify({ address: addr, balance: 0, utxo_count: 0, utxos: [], transactions: [], error: utxos ? null : 'scan failed' }));
+            }
         } else if (url.pathname === '/api/ai/network') {
             const result = rpc('analyzainetwork');
             res.end(JSON.stringify(result || { error: 'AI not available' }));

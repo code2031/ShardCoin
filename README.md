@@ -152,7 +152,16 @@ flutter build web --release
 SHARDCOIN_CLI=./src/shardcoin-cli node serve.js
 ```
 
-Standalone Flutter blockchain explorer with block browsing, transaction detail, AI proof display, search by height/hash/txid, and live auto-refresh. The serve.js also provides the JSON API (`/api/*`).
+Standalone Flutter blockchain explorer. Features:
+- Search by block height, block hash, txid, or address (S... or shrd1...)
+- Address lookup with balance, UTXOs, and full transaction history
+- Block detail: confirmations, chain work, median time, merkle root, bits
+- Transaction detail: inputs/outputs with clickable addresses
+- AI proof display with response hash and model tag
+- Auto AI insights: network analysis, mempool analysis, fee recommendation, block analysis (via deepseek-r1:32b)
+- Live auto-refresh every 30s
+
+The serve.js provides both the Flutter app and JSON API (`/api/*`).
 
 Running
 -------

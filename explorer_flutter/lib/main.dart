@@ -48,7 +48,7 @@ class Explorer extends StatefulWidget {
 class _ExplorerState extends State<Explorer> {
   // State
   List<dynamic> blocks = [];
-  Map<String, dynamic>? info, blk, txn;
+  Map<String, dynamic>? info, blk, txn, addr;
   Map<String, dynamic>? aiNetwork, aiMempool, aiBlockAnalysis;
   Map<String, dynamic>? aiFee;
   bool loading = true;
@@ -137,6 +137,14 @@ class _ExplorerState extends State<Explorer> {
     } catch (_) { if (mounted) setState(() => loading = false); }
   }
 
+  Future<void> _loadAddr(String a) async {
+    setState(() { loading = true; addr = null; blk = null; txn = null; });
+    try {
+      final r = await http.get(Uri.parse('http://node.local:4402/api/address/$a'));
+      if (mounted) setState(() { addr = json.decode(r.body); loading = false; _push('addr'); });
+    } catch (_) { if (mounted) setState(() => loading = false); }
+  }
+
   Future<void> _loadTx(String id) async {
     setState(() => loading = true);
     try {
@@ -153,6 +161,8 @@ class _ExplorerState extends State<Explorer> {
         final d = json.decode(r.body);
         if (d['hash'] != null) _loadBlock(d['hash']);
       });
+    } else if (q.startsWith('S') || q.startsWith('shrd1') || q.startsWith('s')) {
+      _loadAddr(q);
     } else if (q.length == 64 && RegExp(r'^[a-f0-9]+$').hasMatch(q)) {
       _loadBlock(q);
     }
@@ -235,7 +245,7 @@ class _ExplorerState extends State<Explorer> {
               : Padding(
                   padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
                   child: SingleChildScrollView(
-                    child: txn != null ? _txView() : blk != null ? _blockView() : _homeView(),
+                    child: addr != null ? _addrView() : txn != null ? _txView() : blk != null ? _blockView() : _homeView(),
                   ),
                 ),
         ))),
@@ -529,13 +539,87 @@ class _ExplorerState extends State<Explorer> {
             child: Row(children: [
               SizedBox(width: 28, child: Text('$i', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t3))),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(vout[i]['scriptPubKey']?['address'] ?? vout[i]['scriptPubKey']?['type'] ?? 'unknown',
-                  style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t1)),
+                MouseRegion(
+                  cursor: vout[i]['scriptPubKey']?['address'] != null ? SystemMouseCursors.click : SystemMouseCursors.text,
+                  child: GestureDetector(
+                    onTap: vout[i]['scriptPubKey']?['address'] != null ? () => _loadAddr(vout[i]['scriptPubKey']['address']) : null,
+                    child: Text(vout[i]['scriptPubKey']?['address'] ?? vout[i]['scriptPubKey']?['type'] ?? 'unknown',
+                      style: GoogleFonts.jetBrainsMono(fontSize: 11, color: vout[i]['scriptPubKey']?['address'] != null ? C.purple : C.t1)),
+                  ),
+                ),
                 if (vout[i]['scriptPubKey']?['type'] != null)
                   Text(vout[i]['scriptPubKey']['type'], style: GoogleFonts.inter(fontSize: 10, color: C.t3)),
               ])),
               Text('${vout[i]['value']} SHRD', style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.w600, color: C.green)),
             ]),
+          ),
+      ], accent: C.green),
+    ]);
+  }
+
+  Widget _addrView() {
+    final a = addr!;
+    final utxos = a['utxos'] as List? ?? [];
+    final txs = a['transactions'] as List? ?? [];
+    return Column(children: [
+      _back(() { _pop(); setState(() => addr = null); }),
+
+      _section('Address', [
+        _kv('Address', '${a['address']}'),
+        _kv('Balance', '${a['balance']} SHRD', vc: C.green),
+        _kv('UTXOs', '${a['utxo_count']}'),
+        _kv('Transactions', '${txs.length}'),
+      ]),
+
+      // UTXOs
+      if (utxos.isNotEmpty) _section('Unspent Outputs (${utxos.length})', [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+          child: Row(children: [
+            Expanded(flex: 3, child: Text('TXID', style: GoogleFonts.inter(fontSize: 10, color: C.t3, letterSpacing: 1, fontWeight: FontWeight.w700))),
+            SizedBox(width: 50, child: Text('VOUT', style: GoogleFonts.inter(fontSize: 10, color: C.t3, letterSpacing: 1, fontWeight: FontWeight.w700))),
+            SizedBox(width: 60, child: Text('HEIGHT', style: GoogleFonts.inter(fontSize: 10, color: C.t3, letterSpacing: 1, fontWeight: FontWeight.w700))),
+            SizedBox(width: 100, child: Text('AMOUNT', textAlign: TextAlign.right, style: GoogleFonts.inter(fontSize: 10, color: C.t3, letterSpacing: 1, fontWeight: FontWeight.w700))),
+          ]),
+        ),
+        for (final u in utxos)
+          InkWell(
+            onTap: () => _loadTx(u['txid']),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+              child: Row(children: [
+                Expanded(flex: 3, child: Text('${u['txid']}'.substring(0, 20) + '...', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.purple), overflow: TextOverflow.ellipsis)),
+                SizedBox(width: 50, child: Text('${u['vout']}', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t3))),
+                SizedBox(width: 60, child: Text('${u['height']}', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t3))),
+                SizedBox(width: 100, child: Text('${u['amount']} SHRD', textAlign: TextAlign.right, style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.w600, color: C.green))),
+              ]),
+            ),
+          ),
+      ], accent: C.blue),
+
+      // Transaction history
+      if (txs.isNotEmpty) _section('Transaction History (${txs.length})', [
+        for (final tx in txs)
+          InkWell(
+            onTap: () => _loadTx(tx['txid']),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+              child: Row(children: [
+                Expanded(child: Text('${tx['txid']}', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.purple), overflow: TextOverflow.ellipsis)),
+                if (tx['blocktime'] != null) Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Text(DateTime.fromMillisecondsSinceEpoch(tx['blocktime'] * 1000).toLocal().toString().substring(0, 16),
+                    style: GoogleFonts.jetBrainsMono(fontSize: 10, color: C.t3)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Text('${tx['amount']} SHRD', style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.w600, color: C.green)),
+                ),
+              ]),
+            ),
           ),
       ], accent: C.green),
     ]);
