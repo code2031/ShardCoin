@@ -3,11 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
-import 'dart:js_interop' as js;
-import 'dart:js_interop_unsafe' as jsu;
+import 'dart:js_interop';
+
+@JS('window.open')
+external void _windowOpen(JSString url, JSString target);
 
 void _openUrl(String url) {
-  js.globalContext.callMethod('open'.toJS, url.toJS, '_blank'.toJS);
+  _windowOpen(url.toJS, '_blank'.toJS);
 }
 
 void main() => runApp(const App());
@@ -256,7 +258,7 @@ class HomePage extends StatelessWidget {
             child: Text('Get Started', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.black))))),
         const SizedBox(width: 12),
         MouseRegion(cursor: SystemMouseCursors.click, child: GestureDetector(
-          onTap: () => onNav?.call(1),
+          onTap: () => _openUrl('https://github.com/code2031/ShardCoin/blob/master/WHITEPAPER.md'),
           child: Container(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 13), decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: C.card2, border: Border.all(color: C.line2)),
             child: Text('Read Whitepaper', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15))))),
       ]),

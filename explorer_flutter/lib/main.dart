@@ -3,11 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
-import 'dart:js_interop' as js;
-import 'dart:js_interop_unsafe' as jsu;
+import 'dart:js_interop';
+
+@JS('window.open')
+external void _windowOpen(JSString url, JSString target);
 
 void _openUrl(String url) {
-  js.globalContext.callMethod('open'.toJS, url.toJS, '_blank'.toJS);
+  _windowOpen(url.toJS, '_blank'.toJS);
 }
 
 void main() => runApp(const ExplorerApp());
