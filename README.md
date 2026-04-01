@@ -134,7 +134,7 @@ ollamamodel=llama3.2:1b
 Web Services
 ------------
 
-### ShardCoin Website + Explorer (port 4401) - Flutter
+### ShardCoin Website (port 4401) - Flutter
 
 ```bash
 cd website_flutter
@@ -142,15 +142,17 @@ flutter build web --release
 node serve.js
 ```
 
-Single-page Flutter app with 5 tabs: Home, Technology, Download, Network, Explorer. Includes integrated block explorer with live chain data, AI proof display, and transaction viewer.
+Flutter web app with 5 tabs: Home, Technology, Download, Network, Explorer. The Explorer tab links to the standalone explorer on port 4402.
 
-### Explorer API Backend (port 4402)
+### Blockchain Explorer (port 4402) - Flutter
 
 ```bash
-cd explorer && SHARDCOIN_CLI=./src/shardcoin-cli node server.js
+cd explorer_flutter
+flutter build web --release
+SHARDCOIN_CLI=./src/shardcoin-cli node serve.js
 ```
 
-JSON API server that the Flutter explorer tab queries for block, transaction, and AI proof data.
+Standalone Flutter blockchain explorer with block browsing, transaction detail, AI proof display, search by height/hash/txid, and live auto-refresh. The serve.js also provides the JSON API (`/api/*`).
 
 Running
 -------

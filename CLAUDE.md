@@ -313,12 +313,13 @@ Registered in `rpc/mining.cpp` under the `"ai"` category:
 
 ## Web Services
 
-- `website_flutter/` - Flutter web app (port 4401): project site + integrated block explorer with 5 tabs (Home, Technology, Download, Network, Explorer). Build with `flutter build web --release`, serve with `node serve.js`.
-- `explorer/server.js` - Explorer API backend (port 4402): Node.js server that calls `shardcoin-cli` for block/tx/AI proof data. Set `SHARDCOIN_CLI` and `SHARDCOIN_CLI_ARGS` env vars.
-- `website/` - Legacy static HTML site (superseded by Flutter app, kept for reference)
+- `website_flutter/` - Flutter web app (port 4401): project site with 5 tabs (Home, Technology, Download, Network, Explorer link). Build with `flutter build web --release`, serve with `node serve.js`.
+- `explorer_flutter/` - Flutter web app (port 4402): standalone blockchain explorer with block/tx/AI proof browsing. Build with `flutter build web --release`, serve with `node serve.js`. The serve.js also provides the JSON API (`/api/*`) that calls `shardcoin-cli`.
+- `explorer/` - Legacy HTML explorer (superseded by explorer_flutter)
+- `website/` - Legacy HTML site (superseded by website_flutter)
 - `scripts/sync-chain-data.sh` - Exports blockchain data to GitHub repo (code2031/ShardChain-data) via cron every 5 min
 
-Flutter build output is served by `website_flutter/serve.js` (Node.js static file server with SPA fallback, whitepaper endpoint at `/whitepaper`, download endpoint at `/download/*`).
+Both Flutter apps are served by their respective `serve.js` (Node.js static file server with SPA fallback). Set `SHARDCOIN_CLI` and `SHARDCOIN_CLI_ARGS` env vars for the explorer.
 
 ## Third-Party Wallet Integration
 

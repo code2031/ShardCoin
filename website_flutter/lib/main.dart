@@ -3,6 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'dart:js_interop' as js;
+import 'dart:js_interop_unsafe' as jsu;
+
+void _openUrl(String url) {
+  js.globalContext.callMethod('open'.toJS, url.toJS, '_blank'.toJS);
+}
 
 void main() => runApp(const App());
 
@@ -87,7 +93,10 @@ class _ShellState extends State<Shell> {
         // PAGE
         Expanded(child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
-          child: [const HomePage(), const TechPage(), const DlPage(), const NetPage(), const ExpPage()][tab],
+          child: KeyedSubtree(key: ValueKey(tab), child: [
+            HomePage(onNav: (i) => setState(() => tab = i)),
+            const TechPage(), const DlPage(), const NetPage(), const ExpPage(),
+          ][tab]),
         )),
       ]),
       // Mobile nav
@@ -201,7 +210,8 @@ class Foot extends StatelessWidget {
 
 // ===== HOME =====
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  final void Function(int)? onNav;
+  const HomePage({super.key, this.onNav});
   @override
   Widget build(BuildContext context) {
     final big = MediaQuery.of(context).size.width > 800;
@@ -229,11 +239,15 @@ class HomePage extends StatelessWidget {
           textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 16, color: C.t2, height: 1.7)))),
       const SizedBox(height: 36),
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Container(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 13), decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), gradient: const LinearGradient(colors: [C.purple, C.green])),
-          child: Text('Get Started', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.black))),
+        MouseRegion(cursor: SystemMouseCursors.click, child: GestureDetector(
+          onTap: () => onNav?.call(2),
+          child: Container(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 13), decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), gradient: const LinearGradient(colors: [C.purple, C.green])),
+            child: Text('Get Started', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.black))))),
         const SizedBox(width: 12),
-        Container(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 13), decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: C.card2, border: Border.all(color: C.line2)),
-          child: Text('Read Whitepaper', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15))),
+        MouseRegion(cursor: SystemMouseCursors.click, child: GestureDetector(
+          onTap: () => onNav?.call(1),
+          child: Container(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 13), decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: C.card2, border: Border.all(color: C.line2)),
+            child: Text('Read Whitepaper', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15))))),
       ]),
       const SizedBox(height: 72),
 
@@ -422,151 +436,33 @@ class NetPage extends StatelessWidget {
 }
 
 // ===== EXPLORER =====
-class ExpPage extends StatefulWidget {
+class ExpPage extends StatelessWidget {
   const ExpPage({super.key});
   @override
-  State<ExpPage> createState() => _ExpState();
-}
-
-class _ExpState extends State<ExpPage> {
-  List<dynamic> blocks = [];
-  Map<String, dynamic>? info, blk, tx;
-  bool loading = true;
-  final sc = TextEditingController();
-  Timer? t;
-
-  @override
-  void initState() { super.initState(); _load(); t = Timer.periodic(const Duration(seconds: 30), (_) { if (blk == null && tx == null) _load(); }); }
-  @override
-  void dispose() { t?.cancel(); super.dispose(); }
-
-  Future<void> _load() async {
-    try {
-      final r1 = await http.get(Uri.parse('http://node.local:4402/api/info'));
-      final r2 = await http.get(Uri.parse('http://node.local:4402/api/blocks'));
-      if (mounted) setState(() { info = json.decode(r1.body); blocks = json.decode(r2.body); loading = false; blk = null; tx = null; });
-    } catch (_) { if (mounted) setState(() => loading = false); }
-  }
-  Future<void> _blk(String h) async {
-    try { final r = await http.get(Uri.parse('http://node.local:4402/api/block/$h')); if (mounted) setState(() { blk = json.decode(r.body); tx = null; }); } catch (_) {}
-  }
-  Future<void> _tx(String id) async {
-    try { final r = await http.get(Uri.parse('http://node.local:4402/api/tx/$id')); if (mounted) setState(() => tx = json.decode(r.body)); } catch (_) {}
-  }
-  void _search() {
-    final q = sc.text.trim();
-    if (q.isEmpty) { _load(); return; }
-    if (RegExp(r'^\d+$').hasMatch(q)) http.get(Uri.parse('http://node.local:4402/api/blockhash/$q')).then((r) { final d = json.decode(r.body); if (d['hash'] != null) _blk(d['hash']); });
-    else if (q.length == 64 && RegExp(r'^[a-f0-9]+$').hasMatch(q)) _blk(q);
-  }
-
-  @override
-  Widget build(BuildContext context) => Center(child: ConstrainedBox(
-    constraints: const BoxConstraints(maxWidth: 960),
-    child: Padding(padding: const EdgeInsets.fromLTRB(20, 16, 20, 0), child: Column(children: [
-      // Search
-      Row(children: [
-        Expanded(child: TextField(controller: sc, onSubmitted: (_) => _search(), style: GoogleFonts.inter(fontSize: 13),
-          decoration: InputDecoration(
-            hintText: 'Search by block height, hash, or txid...', hintStyle: GoogleFonts.inter(color: C.t3, fontSize: 13),
-            filled: true, fillColor: C.card, prefixIcon: const Icon(Icons.search, color: C.t3, size: 18),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: C.line)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: C.line, width: 0.5)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: C.purple)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12), isDense: true,
-          ))),
-        const SizedBox(width: 8),
-        Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9), decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), gradient: const LinearGradient(colors: [C.purple, C.green])),
-          child: GestureDetector(onTap: _search, child: Text('Search', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black)))),
-        const SizedBox(width: 8),
-        Container(decoration: BoxDecoration(color: C.card, borderRadius: BorderRadius.circular(8), border: Border.all(color: C.line, width: 0.5)),
-          child: IconButton(icon: const Icon(Icons.refresh, color: C.t3, size: 18), onPressed: _load, splashRadius: 18, padding: const EdgeInsets.all(8), constraints: const BoxConstraints())),
-      ]),
-      const SizedBox(height: 16),
-      Expanded(child: loading
-        ? const Center(child: CircularProgressIndicator(color: C.purple, strokeWidth: 2))
-        : SingleChildScrollView(child: tx != null ? _txV() : blk != null ? _blkV() : _homeV())),
-    ])),
-  ));
-
-  Widget _kv(String k, String v, {VoidCallback? tap, Color? vc}) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-    decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
-    child: Row(children: [
-      SizedBox(width: 140, child: Text(k, style: GoogleFonts.inter(fontSize: 12, color: C.t3))),
-      Expanded(child: GestureDetector(onTap: tap, child: MouseRegion(cursor: tap != null ? SystemMouseCursors.click : SystemMouseCursors.text,
-        child: SelectableText(v, style: GoogleFonts.jetBrainsMono(fontSize: 12, color: vc ?? (tap != null ? C.purple : C.t1)))))),
-    ]),
-  );
-
-  Widget _sec(String title, List<Widget> ch, {Color a = C.green}) => Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    decoration: BoxDecoration(color: C.card, borderRadius: BorderRadius.circular(10), border: Border.all(color: C.line, width: 0.5)),
-    clipBehavior: Clip.antiAlias,
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(padding: const EdgeInsets.fromLTRB(14, 12, 14, 10), decoration: BoxDecoration(color: C.card2, border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
-        child: Row(children: [Container(width: 3, height: 12, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: a)), const SizedBox(width: 10),
-          Text(title, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600))])),
-      ...ch,
-    ]),
-  );
-
-  Widget _homeV() => Column(children: [
-    if (info != null) _sec('Network', [
-      if (info!['blocks'] != null) _kv('Height', '${info!['blocks']}'),
-      if (info!['difficulty'] != null) _kv('Difficulty', '${info!['difficulty']}'),
-      if (info!['chain'] != null) _kv('Chain', '${info!['chain']}'),
-      if (info!['bestblockhash'] != null) _kv('Best Block', '${info!['bestblockhash']}'),
-      if (info!['ai'] != null) ...[
-        _kv('AI Proof', info!['ai']['enabled'] == true ? 'Enabled' : 'Disabled', vc: info!['ai']['enabled'] == true ? C.green : C.t3),
-        _kv('Ollama', info!['ai']['ollama_connected'] == true ? 'Connected' : 'Offline', vc: info!['ai']['ollama_connected'] == true ? C.green : C.pink),
-      ],
-    ]),
-    _sec('Recent Blocks', [
-      for (final b in blocks) InkWell(onTap: () => _blk(b['hash']), child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
-        child: Row(children: [
-          SizedBox(width: 60, child: Text('#${b['height']}', style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.w700, color: C.green))),
-          Expanded(child: Text('${b['hash']}'.substring(0, 24) + '...', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t3), overflow: TextOverflow.ellipsis)),
-          SizedBox(width: 70, child: Text(DateTime.fromMillisecondsSinceEpoch(b['time'] * 1000).toLocal().toString().substring(11, 19), style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t3))),
-          SizedBox(width: 40, child: Text('${b['tx']} tx', textAlign: TextAlign.right, style: GoogleFonts.jetBrainsMono(fontSize: 11))),
-          if (b['ai'] == true) Container(margin: const EdgeInsets.only(left: 6), padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-            decoration: BoxDecoration(gradient: const LinearGradient(colors: [C.purple, C.green]), borderRadius: BorderRadius.circular(8)),
-            child: Text('AI', style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.black))),
-        ]),
+  Widget build(BuildContext context) => Center(
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      const Icon(Icons.explore_rounded, size: 64, color: C.t3),
+      const SizedBox(height: 24),
+      Text('ShardCoin Explorer', style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 8),
+      Text('Browse blocks, transactions, and AI proofs', style: GoogleFonts.inter(fontSize: 15, color: C.t2)),
+      const SizedBox(height: 32),
+      MouseRegion(cursor: SystemMouseCursors.click, child: GestureDetector(
+        onTap: () => _launchExplorer(),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 13),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), gradient: const LinearGradient(colors: [C.purple, C.green])),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Text('Open Explorer', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.black)),
+            const SizedBox(width: 8),
+            const Icon(Icons.open_in_new_rounded, size: 16, color: Colors.black),
+          ]),
+        ),
       )),
-    ], a: C.blue),
-  ]);
-
-  Widget _blkV() { final b = blk!; return Column(children: [
-    Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: _load, icon: const Icon(Icons.arrow_back_rounded, size: 14), label: Text('Back', style: GoogleFonts.inter(fontSize: 12)))),
-    _sec('Block #${b['height'] ?? '?'}', [
-      _kv('Hash', '${b['hash']}'), _kv('Previous', b['previousblockhash'] ?? 'Genesis', tap: b['previousblockhash'] != null ? () => _blk(b['previousblockhash']) : null),
-      _kv('Time', DateTime.fromMillisecondsSinceEpoch(b['time'] * 1000).toLocal().toString()),
-      _kv('Difficulty', '${b['difficulty']}'), _kv('Nonce', '${b['nonce']}'),
-      _kv('Transactions', '${(b['tx'] as List?)?.length ?? 0}'), _kv('Size', '${b['size']} bytes'), _kv('Weight', '${b['weight']}'),
+      const SizedBox(height: 12),
+      Text('node.local:4402', style: GoogleFonts.jetBrainsMono(fontSize: 13, color: C.t3)),
     ]),
-    if (b['ai_proof'] != null) _sec('AI Proof', [
-      _kv('Status', 'Verified', vc: C.green), _kv('Response Hash', '${b['ai_proof']['response_hash']}'), _kv('Model Tag', '${b['ai_proof']['model_tag']}'),
-    ], a: C.purple),
-    if (b['tx'] != null) _sec('Transactions', [
-      for (final id in b['tx']) InkWell(onTap: () => _tx(id), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        child: Text(id, style: GoogleFonts.jetBrainsMono(fontSize: 12, color: C.purple)))),
-    ], a: C.blue),
-  ]); }
+  );
 
-  Widget _txV() { final t = tx!; return Column(children: [
-    Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => setState(() => tx = null), icon: const Icon(Icons.arrow_back_rounded, size: 14), label: Text('Back', style: GoogleFonts.inter(fontSize: 12)))),
-    _sec('Transaction', [
-      _kv('TXID', '${t['txid']}'), _kv('Size', '${t['size']} bytes'), _kv('Version', '${t['version']}'), _kv('Locktime', '${t['locktime']}'),
-      if (t['blockhash'] != null) _kv('Block', '${t['blockhash']}', tap: () => _blk(t['blockhash'])),
-    ]),
-    if (t['vin'] != null) _sec('Inputs (${(t['vin'] as List).length})', [
-      for (final i in t['vin']) _kv(i['coinbase'] != null ? 'Coinbase' : '${i['txid']}'.substring(0, 16) + '...', i['coinbase'] != null ? '${i['coinbase']}'.substring(0, 40) + '...' : 'vout:${i['vout']}'),
-    ], a: C.purple),
-    if (t['vout'] != null) _sec('Outputs (${(t['vout'] as List).length})', [
-      for (final o in t['vout']) _kv(o['scriptPubKey']?['address'] ?? o['scriptPubKey']?['type'] ?? '-', '${o['value']} SHRD', vc: C.green),
-    ], a: C.green),
-  ]); }
+  static void _launchExplorer() => _openUrl('http://node.local:4402');
 }

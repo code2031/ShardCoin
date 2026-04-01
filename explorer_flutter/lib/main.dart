@@ -1,0 +1,444 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
+
+void main() => runApp(const ExplorerApp());
+
+// ===== COLORS =====
+class C {
+  static const bg   = Color(0xFF050508);
+  static const bg2  = Color(0xFF0B0B10);
+  static const card = Color(0xFF101018);
+  static const card2= Color(0xFF161622);
+  static const line = Color(0xFF1E1E30);
+  static const line2= Color(0xFF2A2A40);
+  static const t1   = Color(0xFFF4F4F8);
+  static const t2   = Color(0xFFA8A8BC);
+  static const t3   = Color(0xFF68687E);
+  static const green= Color(0xFF14F195);
+  static const purple=Color(0xFF9945FF);
+  static const blue = Color(0xFF4DA2FF);
+  static const pink = Color(0xFFEB459E);
+}
+
+// ===== APP =====
+class ExplorerApp extends StatelessWidget {
+  const ExplorerApp({super.key});
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    title: 'ShardCoin Explorer',
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData.dark(useMaterial3: true).copyWith(
+      scaffoldBackgroundColor: C.bg,
+      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+    ),
+    home: const Explorer(),
+  );
+}
+
+// ===== EXPLORER =====
+class Explorer extends StatefulWidget {
+  const Explorer({super.key});
+  @override
+  State<Explorer> createState() => _ExplorerState();
+}
+
+class _ExplorerState extends State<Explorer> {
+  // State
+  List<dynamic> blocks = [];
+  Map<String, dynamic>? info, blk, txn;
+  bool loading = true;
+  String? error;
+  final sc = TextEditingController();
+  Timer? timer;
+
+  // View stack for back navigation
+  final List<String> _history = ['home'];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    timer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (blk == null && txn == null) _load();
+    });
+  }
+
+  @override
+  void dispose() { timer?.cancel(); super.dispose(); }
+
+  void _push(String view) => _history.add(view);
+  void _pop() {
+    if (_history.length > 1) _history.removeLast();
+    final last = _history.last;
+    if (last == 'home') { _load(); }
+  }
+
+  Future<void> _load() async {
+    try {
+      final r1 = await http.get(Uri.parse('http://node.local:4402/api/info'));
+      final r2 = await http.get(Uri.parse('http://node.local:4402/api/blocks'));
+      if (mounted) setState(() {
+        info = json.decode(r1.body);
+        blocks = json.decode(r2.body);
+        loading = false; error = null; blk = null; txn = null;
+        _history.clear(); _history.add('home');
+      });
+    } catch (e) {
+      if (mounted) setState(() { loading = false; error = 'Could not connect to node'; });
+    }
+  }
+
+  Future<void> _loadBlock(String h) async {
+    setState(() => loading = true);
+    try {
+      final r = await http.get(Uri.parse('http://node.local:4402/api/block/$h'));
+      if (mounted) setState(() { blk = json.decode(r.body); txn = null; loading = false; _push('block'); });
+    } catch (_) { if (mounted) setState(() => loading = false); }
+  }
+
+  Future<void> _loadTx(String id) async {
+    setState(() => loading = true);
+    try {
+      final r = await http.get(Uri.parse('http://node.local:4402/api/tx/$id'));
+      if (mounted) setState(() { txn = json.decode(r.body); loading = false; _push('tx'); });
+    } catch (_) { if (mounted) setState(() => loading = false); }
+  }
+
+  void _search() {
+    final q = sc.text.trim();
+    if (q.isEmpty) { _load(); return; }
+    if (RegExp(r'^\d+$').hasMatch(q)) {
+      http.get(Uri.parse('http://node.local:4402/api/blockhash/$q')).then((r) {
+        final d = json.decode(r.body);
+        if (d['hash'] != null) _loadBlock(d['hash']);
+      });
+    } else if (q.length == 64 && RegExp(r'^[a-f0-9]+$').hasMatch(q)) {
+      _loadBlock(q);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(children: [
+        // HEADER
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          decoration: const BoxDecoration(color: C.bg, border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+          child: Row(children: [
+            Container(width: 28, height: 28, decoration: BoxDecoration(borderRadius: BorderRadius.circular(7), gradient: const LinearGradient(colors: [C.purple, C.green])),
+              child: const Center(child: Text('S', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Colors.black)))),
+            const SizedBox(width: 10),
+            Text('ShardCoin ', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 16)),
+            Text('Explorer', style: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 16, color: C.t3)),
+            const Spacer(),
+            // Live indicator
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: C.card2, borderRadius: BorderRadius.circular(100), border: Border.all(color: C.line, width: 0.5)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: C.green,
+                  boxShadow: [BoxShadow(color: C.green.withValues(alpha: 0.5), blurRadius: 6)])),
+                const SizedBox(width: 6),
+                Text(info != null ? 'Height ${info!['blocks']}' : 'Connecting...', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t2)),
+              ]),
+            ),
+          ]),
+        ),
+
+        // SEARCH BAR
+        Container(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
+          color: C.bg2,
+          child: Center(child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 900),
+            child: Row(children: [
+              Expanded(child: TextField(
+                controller: sc, onSubmitted: (_) => _search(),
+                style: GoogleFonts.jetBrainsMono(fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Search by block height, block hash, or transaction ID',
+                  hintStyle: GoogleFonts.inter(color: C.t3, fontSize: 13),
+                  filled: true, fillColor: C.card,
+                  prefixIcon: const Icon(Icons.search_rounded, color: C.t3, size: 18),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: C.line)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: C.line, width: 0.5)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: C.purple)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12), isDense: true,
+                ),
+              )),
+              const SizedBox(width: 8),
+              _btn('Search', onTap: _search),
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(color: C.card, borderRadius: BorderRadius.circular(8), border: Border.all(color: C.line, width: 0.5)),
+                child: IconButton(icon: const Icon(Icons.refresh_rounded, color: C.t3, size: 18), onPressed: _load, splashRadius: 18, padding: const EdgeInsets.all(8), constraints: const BoxConstraints()),
+              ),
+            ]),
+          )),
+        ),
+
+        // CONTENT
+        Expanded(child: Center(child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: loading
+            ? const Center(child: CircularProgressIndicator(color: C.purple, strokeWidth: 2))
+            : error != null
+              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.cloud_off_rounded, color: C.t3, size: 48),
+                  const SizedBox(height: 16),
+                  Text(error!, style: GoogleFonts.inter(color: C.t3, fontSize: 14)),
+                  const SizedBox(height: 12),
+                  _btn('Retry', onTap: _load),
+                ]))
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                  child: SingleChildScrollView(
+                    child: txn != null ? _txView() : blk != null ? _blockView() : _homeView(),
+                  ),
+                ),
+        ))),
+
+        // FOOTER
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          decoration: const BoxDecoration(color: C.bg2, border: Border(top: BorderSide(color: C.line, width: 0.5))),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            for (final l in ['GitHub', 'ShardCoin', 'ShardWallet', 'Chain Data'])
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(l, style: GoogleFonts.inter(fontSize: 12, color: C.t3))),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  // ---- WIDGETS ----
+
+  Widget _btn(String text, {VoidCallback? onTap}) => MouseRegion(
+    cursor: SystemMouseCursors.click,
+    child: GestureDetector(onTap: onTap, child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), gradient: const LinearGradient(colors: [C.purple, C.green])),
+      child: Text(text, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black)),
+    )),
+  );
+
+  Widget _back(VoidCallback onTap) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Align(alignment: Alignment.centerLeft, child: MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(onTap: onTap, child: Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.arrow_back_rounded, size: 14, color: C.t3),
+        const SizedBox(width: 4),
+        Text('Back', style: GoogleFonts.inter(fontSize: 12, color: C.t3)),
+      ])),
+    )),
+  );
+
+  Widget _kv(String k, String v, {VoidCallback? tap, Color? vc}) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+    decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+    child: Row(children: [
+      SizedBox(width: 140, child: Text(k, style: GoogleFonts.inter(fontSize: 12, color: C.t3, fontWeight: FontWeight.w500))),
+      Expanded(child: MouseRegion(
+        cursor: tap != null ? SystemMouseCursors.click : SystemMouseCursors.text,
+        child: GestureDetector(onTap: tap, child: SelectableText(v,
+          style: GoogleFonts.jetBrainsMono(fontSize: 12, color: vc ?? (tap != null ? C.purple : C.t1)))),
+      )),
+    ]),
+  );
+
+  Widget _section(String title, List<Widget> children, {Color accent = C.green}) => Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    decoration: BoxDecoration(color: C.card, borderRadius: BorderRadius.circular(10), border: Border.all(color: C.line, width: 0.5)),
+    clipBehavior: Clip.antiAlias,
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(
+        padding: const EdgeInsets.fromLTRB(14, 11, 14, 9),
+        decoration: BoxDecoration(color: C.card2, border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+        child: Row(children: [
+          Container(width: 3, height: 12, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: accent)),
+          const SizedBox(width: 10),
+          Text(title, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+        ]),
+      ),
+      ...children,
+    ]),
+  );
+
+  // ---- VIEWS ----
+
+  Widget _homeView() => Column(children: [
+    // Network overview
+    if (info != null) _section('Network Overview', [
+      _kv('Height', '${info!['blocks'] ?? '-'}'),
+      _kv('Difficulty', '${info!['difficulty'] ?? '-'}'),
+      _kv('Chain', '${info!['chain'] ?? '-'}'),
+      _kv('Best Block', '${info!['bestblockhash'] ?? '-'}'),
+      if (info!['ai'] != null) ...[
+        _kv('AI Proof-of-Work', info!['ai']['enabled'] == true ? 'Enabled' : 'Disabled', vc: info!['ai']['enabled'] == true ? C.green : C.t3),
+        _kv('Ollama Status', info!['ai']['ollama_connected'] == true ? 'Connected' : 'Offline', vc: info!['ai']['ollama_connected'] == true ? C.green : C.pink),
+        _kv('AI Model', '${info!['ai']['model'] ?? '-'}'),
+      ],
+    ]),
+
+    // Blocks list
+    _section('Recent Blocks', [
+      // Header row
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+        child: Row(children: [
+          SizedBox(width: 60, child: Text('HEIGHT', style: GoogleFonts.inter(fontSize: 10, color: C.t3, letterSpacing: 1, fontWeight: FontWeight.w700))),
+          Expanded(child: Text('HASH', style: GoogleFonts.inter(fontSize: 10, color: C.t3, letterSpacing: 1, fontWeight: FontWeight.w700))),
+          SizedBox(width: 70, child: Text('TIME', style: GoogleFonts.inter(fontSize: 10, color: C.t3, letterSpacing: 1, fontWeight: FontWeight.w700))),
+          SizedBox(width: 50, child: Text('TXS', textAlign: TextAlign.right, style: GoogleFonts.inter(fontSize: 10, color: C.t3, letterSpacing: 1, fontWeight: FontWeight.w700))),
+          const SizedBox(width: 36),
+        ]),
+      ),
+      // Block rows
+      for (final b in blocks) _blockRow(b),
+    ], accent: C.blue),
+  ]);
+
+  Widget _blockRow(dynamic b) => InkWell(
+    onTap: () => _loadBlock(b['hash']),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+      child: Row(children: [
+        SizedBox(width: 60, child: Text('#${b['height']}', style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.w700, color: C.green))),
+        Expanded(child: Text('${b['hash']}'.substring(0, 24) + '...', overflow: TextOverflow.ellipsis, style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t3))),
+        SizedBox(width: 70, child: Text(
+          DateTime.fromMillisecondsSinceEpoch(b['time'] * 1000).toLocal().toString().substring(11, 19),
+          style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t3))),
+        SizedBox(width: 50, child: Text('${b['tx']}', textAlign: TextAlign.right, style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t2))),
+        SizedBox(width: 36, child: b['ai'] == true
+          ? Container(
+              margin: const EdgeInsets.only(left: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(gradient: const LinearGradient(colors: [C.purple, C.green]), borderRadius: BorderRadius.circular(8)),
+              child: Text('AI', style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.black)))
+          : const SizedBox()),
+      ]),
+    ),
+  );
+
+  Widget _blockView() {
+    final b = blk!;
+    final txList = b['tx'] as List? ?? [];
+    return Column(children: [
+      _back(() { _pop(); setState(() { blk = null; txn = null; }); }),
+
+      // Block header
+      _section('Block #${b['height'] ?? '?'}', [
+        _kv('Hash', '${b['hash']}'),
+        _kv('Previous Block', b['previousblockhash'] ?? 'Genesis',
+          tap: b['previousblockhash'] != null ? () => _loadBlock(b['previousblockhash']) : null),
+        _kv('Timestamp', DateTime.fromMillisecondsSinceEpoch(b['time'] * 1000).toLocal().toString()),
+        _kv('Difficulty', '${b['difficulty']}'),
+        _kv('Nonce', '${b['nonce']}'),
+        _kv('Size', '${b['size']} bytes'),
+        _kv('Weight', '${b['weight']}'),
+        _kv('Transactions', '${txList.length}'),
+        _kv('Merkle Root', '${b['merkleroot'] ?? '-'}'),
+        _kv('Version', '0x${(b['version'] as int?)?.toRadixString(16) ?? '-'}'),
+      ]),
+
+      // AI Proof (if present)
+      if (b['ai_proof'] != null) _section('AI Proof', [
+        _kv('Status', 'Verified', vc: C.green),
+        _kv('Version', '${b['ai_proof']['version'] ?? 1}'),
+        _kv('Response Hash', '${b['ai_proof']['response_hash']}'),
+        _kv('Model Tag', '${b['ai_proof']['model_tag']}'),
+      ], accent: C.purple),
+
+      // Transactions
+      if (txList.isNotEmpty) _section('Transactions (${txList.length})', [
+        for (var i = 0; i < txList.length; i++)
+          InkWell(
+            onTap: () => _loadTx(txList[i]),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+              child: Row(children: [
+                SizedBox(width: 28, child: Text('$i', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t3))),
+                Expanded(child: Text(txList[i], style: GoogleFonts.jetBrainsMono(fontSize: 12, color: C.purple))),
+                if (i == 0) Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(color: C.green.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4)),
+                  child: Text('coinbase', style: GoogleFonts.inter(fontSize: 10, color: C.green, fontWeight: FontWeight.w600)),
+                ),
+              ]),
+            ),
+          ),
+      ], accent: C.blue),
+    ]);
+  }
+
+  Widget _txView() {
+    final t = txn!;
+    final vin = t['vin'] as List? ?? [];
+    final vout = t['vout'] as List? ?? [];
+    return Column(children: [
+      _back(() { _pop(); setState(() => txn = null); }),
+
+      _section('Transaction', [
+        _kv('TXID', '${t['txid']}'),
+        if (t['blockhash'] != null) _kv('Block', '${t['blockhash']}', tap: () => _loadBlock(t['blockhash'])),
+        _kv('Size', '${t['size']} bytes'),
+        _kv('Virtual Size', '${t['vsize'] ?? t['size']} vbytes'),
+        _kv('Weight', '${t['weight'] ?? '-'}'),
+        _kv('Version', '${t['version']}'),
+        _kv('Locktime', '${t['locktime']}'),
+      ]),
+
+      // Inputs
+      _section('Inputs (${vin.length})', [
+        for (var i = 0; i < vin.length; i++)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+            child: Row(children: [
+              SizedBox(width: 28, child: Text('$i', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t3))),
+              Expanded(child: vin[i]['coinbase'] != null
+                ? Row(children: [
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1), decoration: BoxDecoration(color: C.green.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4)),
+                      child: Text('coinbase', style: GoogleFonts.inter(fontSize: 10, color: C.green, fontWeight: FontWeight.w600))),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text('${vin[i]['coinbase']}'.substring(0, (vin[i]['coinbase'] as String).length.clamp(0, 40)) + '...', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t3))),
+                  ])
+                : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('${vin[i]['txid']}', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.purple)),
+                    Text('Output index: ${vin[i]['vout']}', style: GoogleFonts.inter(fontSize: 11, color: C.t3)),
+                  ]),
+              ),
+            ]),
+          ),
+      ], accent: C.purple),
+
+      // Outputs
+      _section('Outputs (${vout.length})', [
+        for (var i = 0; i < vout.length; i++)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: C.line, width: 0.5))),
+            child: Row(children: [
+              SizedBox(width: 28, child: Text('$i', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t3))),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(vout[i]['scriptPubKey']?['address'] ?? vout[i]['scriptPubKey']?['type'] ?? 'unknown',
+                  style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.t1)),
+                if (vout[i]['scriptPubKey']?['type'] != null)
+                  Text(vout[i]['scriptPubKey']['type'], style: GoogleFonts.inter(fontSize: 10, color: C.t3)),
+              ])),
+              Text('${vout[i]['value']} SHRD', style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.w600, color: C.green)),
+            ]),
+          ),
+      ], accent: C.green),
+    ]);
+  }
+}
