@@ -36,21 +36,26 @@ jobs:
             python3
             git
 
+      - name: Find Boost
+        shell: msys2 {0}
+        run: |
+          ls /mingw64/lib/libboost_system* || true
+          pkg-config --libs boost_system 2>/dev/null || true
+          echo "Boost include:" && ls /mingw64/include/boost/version.hpp
+
       - name: Build ShardCoin
         shell: msys2 {0}
         run: |
           ./autogen.sh
-          BOOST_ROOT=/mingw64 \
           ./configure \
             --prefix=/mingw64 \
             --without-gui \
             --disable-bench \
             --disable-fuzz-binary \
             --with-incompatible-bdb \
-            CXXFLAGS="-O2" \
-            LDFLAGS="-L/mingw64/lib" \
-            CPPFLAGS="-I/mingw64/include" \
-            BOOST_LIBS="-lboost_system-mt -lboost_filesystem-mt -lboost_thread-mt"
+            --with-boost=/mingw64 \
+            CXXFLAGS="-O2 -I/mingw64/include" \
+            LDFLAGS="-L/mingw64/lib"
           make -j$(nproc)
 
       - name: Package
