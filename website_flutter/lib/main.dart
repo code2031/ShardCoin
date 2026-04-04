@@ -3,14 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
-import 'dart:js_interop';
+import 'url_helper.dart' if (dart.library.js_interop) 'url_helper_web.dart' as platform;
 
-@JS('window.open')
-external void _windowOpen(JSString url, JSString target);
-
-void _openUrl(String url) {
-  _windowOpen(url.toJS, '_blank'.toJS);
-}
+void _openUrl(String url) => platform.openUrl(url);
 
 void main() => runApp(const App());
 
