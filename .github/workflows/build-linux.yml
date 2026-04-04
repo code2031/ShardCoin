@@ -1,0 +1,44 @@
+name: Build Linux
+on:
+  workflow_dispatch:
+
+jobs:
+  build-x86_64:
+    name: ShardCoin Linux x86_64
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libtool autotools-dev automake \
+            pkg-config bsdmainutils python3 libevent-dev libboost-dev \
+            libboost-system-dev libboost-filesystem-dev libboost-test-dev \
+            libboost-thread-dev libsqlite3-dev libssl-dev libfmt-dev \
+            libdb-dev libdb++-dev libzmq3-dev libminiupnpc-dev \
+            qtbase5-dev qttools5-dev qttools5-dev-tools libqrencode-dev
+
+      - name: Build
+        run: |
+          ./autogen.sh
+          ./configure --with-incompatible-bdb --disable-bench --disable-fuzz-binary
+          make -j$(nproc)
+
+      - name: Strip and package
+        run: |
+          mkdir -p dist/shardcoin-linux-x86_64
+          for bin in shardcoind shardcoin-cli shardcoin-tx shardcoin-wallet; do
+            cp "src/$bin" dist/shardcoin-linux-x86_64/
+            strip dist/shardcoin-linux-x86_64/$bin
+          done
+          if [ -f src/qt/shardcoin-qt ]; then
+            cp src/qt/shardcoin-qt dist/shardcoin-linux-x86_64/
+            strip dist/shardcoin-linux-x86_64/shardcoin-qt
+          fi
+          cd dist && tar czf shardcoin-linux-x86_64.tar.gz shardcoin-linux-x86_64/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shardcoin-linux-x86_64
+          path: dist/shardcoin-linux-x86_64.tar.gz
