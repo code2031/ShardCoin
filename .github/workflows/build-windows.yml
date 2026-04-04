@@ -40,18 +40,17 @@ jobs:
         shell: msys2 {0}
         run: |
           ./autogen.sh
-          CONFIG_SITE=$PWD/depends/config.site ./configure \
+          BOOST_ROOT=/mingw64 \
+          ./configure \
             --prefix=/mingw64 \
+            --without-gui \
             --disable-bench \
             --disable-fuzz-binary \
             --with-incompatible-bdb \
-            CXXFLAGS="-O2" || {
-            ./configure \
-              --disable-bench \
-              --disable-fuzz-binary \
-              --with-incompatible-bdb \
-              CXXFLAGS="-O2"
-          }
+            CXXFLAGS="-O2" \
+            LDFLAGS="-L/mingw64/lib" \
+            CPPFLAGS="-I/mingw64/include" \
+            BOOST_LIBS="-lboost_system-mt -lboost_filesystem-mt -lboost_thread-mt"
           make -j$(nproc)
 
       - name: Package
@@ -62,7 +61,6 @@ jobs:
           cp src/shardcoin-cli.exe dist/shardcoin-win64/ 2>/dev/null || true
           cp src/shardcoin-tx.exe dist/shardcoin-win64/ 2>/dev/null || true
           cp src/shardcoin-wallet.exe dist/shardcoin-win64/ 2>/dev/null || true
-          cp src/qt/shardcoin-qt.exe dist/shardcoin-win64/ 2>/dev/null || true
           for exe in dist/shardcoin-win64/*.exe; do
             ldd "$exe" 2>/dev/null | grep mingw64 | awk '{print $3}' | while read dll; do
               cp "$dll" dist/shardcoin-win64/ 2>/dev/null || true
