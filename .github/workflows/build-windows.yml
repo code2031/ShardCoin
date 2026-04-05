@@ -66,18 +66,25 @@ jobs:
         shell: msys2 {0}
         run: |
           mkdir -p dist/shardcoin-win64
+          # Find actual .exe binaries (may be in .libs/ due to libtool)
           for bin in shardcoind shardcoin-cli shardcoin-tx shardcoin-wallet; do
-            if [ -f "src/${bin}.exe" ]; then
-              cp "src/${bin}.exe" dist/shardcoin-win64/
-              strip dist/shardcoin-win64/${bin}.exe
-            fi
+            for loc in "src/${bin}.exe" "src/.libs/${bin}.exe"; do
+              if [ -f "$loc" ]; then
+                cp "$loc" dist/shardcoin-win64/
+                strip dist/shardcoin-win64/${bin}.exe 2>/dev/null || true
+                break
+              fi
+            done
           done
+          # Copy required DLLs
           for exe in dist/shardcoin-win64/*.exe; do
             ldd "$exe" 2>/dev/null | grep mingw64 | awk '{print $3}' | sort -u | while read dll; do
               cp "$dll" dist/shardcoin-win64/ 2>/dev/null || true
             done
           done
-          ls -la dist/shardcoin-win64/
+          echo "=== Package contents ==="
+          ls -lh dist/shardcoin-win64/ || echo "ERROR: No files found"
+          test -f dist/shardcoin-win64/shardcoind.exe || { echo "FATAL: shardcoind.exe not found"; find src -name "*.exe" -type f; exit 1; }
 
       - name: Zip
         shell: pwsh
