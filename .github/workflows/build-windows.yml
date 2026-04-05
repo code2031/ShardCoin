@@ -52,6 +52,7 @@ jobs:
             --disable-zmq \
             --disable-bench \
             --disable-fuzz-binary \
+            --disable-tests \
             --with-incompatible-bdb \
             --with-boost=/mingw64 \
             --with-boost-libdir=/mingw64/lib \
