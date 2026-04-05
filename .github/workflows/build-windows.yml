@@ -21,9 +21,6 @@ jobs:
             mingw-w64-x86_64-openssl
             mingw-w64-x86_64-zeromq
             mingw-w64-x86_64-db
-            mingw-w64-x86_64-qt5-base
-            mingw-w64-x86_64-qt5-tools
-            mingw-w64-x86_64-qrencode
             mingw-w64-x86_64-miniupnpc
             mingw-w64-x86_64-libsodium
             mingw-w64-x86_64-sqlite3
@@ -36,41 +33,49 @@ jobs:
             python3
             git
 
-      - name: Find Boost
-        shell: msys2 {0}
-        run: |
-          ls /mingw64/lib/libboost_system* || true
-          pkg-config --libs boost_system 2>/dev/null || true
-          echo "Boost include:" && ls /mingw64/include/boost/version.hpp
-
       - name: Build ShardCoin
         shell: msys2 {0}
         run: |
+          # Debug: show what Boost libs exist
+          ls /mingw64/lib/libboost_system* || echo "No boost_system libs found"
+          ls /mingw64/lib/cmake/Boost*/BoostConfig.cmake || echo "No cmake config"
+
           ./autogen.sh
+
+          # Patch configure to find MSYS2 Boost (it uses -mt suffixed libs)
+          # The configure macro checks for -lboost_system but MSYS2 has -lboost_system-mt
+          export BOOST_LIB_SUFFIX="-mt"
+
           ./configure \
-            --prefix=/mingw64 \
             --without-gui \
             --disable-bench \
             --disable-fuzz-binary \
             --with-incompatible-bdb \
             --with-boost=/mingw64 \
-            CXXFLAGS="-O2 -I/mingw64/include" \
-            LDFLAGS="-L/mingw64/lib"
+            --with-boost-libdir=/mingw64/lib \
+            CXXFLAGS="-O2" \
+            LDFLAGS="-L/mingw64/lib" \
+            CPPFLAGS="-I/mingw64/include" \
+            LIBS="-lws2_32 -lssp"
           make -j$(nproc)
 
       - name: Package
         shell: msys2 {0}
         run: |
           mkdir -p dist/shardcoin-win64
-          cp src/shardcoind.exe dist/shardcoin-win64/ 2>/dev/null || true
-          cp src/shardcoin-cli.exe dist/shardcoin-win64/ 2>/dev/null || true
-          cp src/shardcoin-tx.exe dist/shardcoin-win64/ 2>/dev/null || true
-          cp src/shardcoin-wallet.exe dist/shardcoin-win64/ 2>/dev/null || true
+          for bin in shardcoind shardcoin-cli shardcoin-tx shardcoin-wallet; do
+            if [ -f "src/${bin}.exe" ]; then
+              cp "src/${bin}.exe" dist/shardcoin-win64/
+              strip dist/shardcoin-win64/${bin}.exe
+            fi
+          done
+          # Copy required DLLs
           for exe in dist/shardcoin-win64/*.exe; do
-            ldd "$exe" 2>/dev/null | grep mingw64 | awk '{print $3}' | while read dll; do
+            ldd "$exe" 2>/dev/null | grep mingw64 | awk '{print $3}' | sort -u | while read dll; do
               cp "$dll" dist/shardcoin-win64/ 2>/dev/null || true
             done
           done
+          ls -la dist/shardcoin-win64/
           cd dist && 7z a -tzip shardcoin-win64.zip shardcoin-win64/
 
       - uses: actions/upload-artifact@v4
