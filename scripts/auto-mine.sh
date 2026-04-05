@@ -32,6 +32,9 @@ while true; do
         echo "[$(date)] Block mined! Height: $HEIGHT, Balance: $BALANCE SHRD"
         BLOCK_COUNT=$((BLOCK_COUNT + 1))
 
+        # Sync chain data to GitHub immediately
+        /home/pi/shardcoin/scripts/sync-chain-data.sh >> /home/pi/shardcoin/sync.log 2>&1 &
+
         # Every 5 blocks, send a transaction to another address to create activity
         if [ $((BLOCK_COUNT % 5)) -eq 0 ]; then
             # Generate a new address and send some SHRD to it
