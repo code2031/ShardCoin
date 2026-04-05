@@ -317,7 +317,8 @@ Registered in `rpc/mining.cpp` under the `"ai"` category:
 - `explorer_flutter/` - Flutter web app (port 4402): standalone blockchain explorer with block/tx/AI proof browsing. Build with `flutter build web --release`, serve with `node serve.js`. The serve.js also provides the JSON API (`/api/*`) that calls `shardcoin-cli`.
 - `explorer/` - Legacy HTML explorer (superseded by explorer_flutter)
 - `website/` - Legacy HTML site (superseded by website_flutter)
-- `scripts/sync-chain-data.sh` - Exports blockchain data to GitHub repo (code2031/ShardChain-data) via cron every 5 min
+- `scripts/sync-chain-data.sh` - Exports blockchain data to GitHub repo (code2031/ShardChain-data), triggered on every block mined
+- `scripts/auto-mine.sh` - Auto-mines a block every 2.5 min with AI proof, sends periodic transactions, triggers chain data sync. Runs as systemd service on node.local
 
 Both Flutter apps are served by their respective `serve.js` (Node.js static file server with SPA fallback). Set `SHARDCOIN_CLI` and `SHARDCOIN_CLI_ARGS` env vars for the explorer.
 

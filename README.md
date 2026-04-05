@@ -163,10 +163,22 @@ Standalone Flutter blockchain explorer. Features:
 - Transaction detail: confirmations, block time, inputs with source txid, outputs with clickable addresses, virtual size, weight
 - AI proof display with response hash and model tag
 - Auto AI insights on every page: network analysis, mempool analysis, fee recommendation, block analysis (via deepseek-r1:32b)
-- Live auto-refresh every 30s
+- Live auto-refresh every 30s, all text selectable/copyable
+- URL routing: shareable links for blocks (`/block/<hash>`), transactions (`/tx/<txid>`), addresses (`/address/<addr>`)
 - All links functional: footer opens GitHub/Releases/ShardWallet/Chain Data, logo returns home
 
 The serve.js provides both the Flutter app and JSON API (`/api/*`).
+
+### Live Chain
+
+The node auto-mines a block every 2.5 minutes with AI proof via deepseek-r1:32b. Chain data syncs to [github.com/code2031/ShardChain-data](https://github.com/code2031/ShardChain-data) on every block.
+
+### Downloads
+
+Release binaries at [github.com/code2031/ShardCoin/releases](https://github.com/code2031/ShardCoin/releases):
+- Linux x86_64 and ARM64 (daemon, CLI, wallet, Qt GUI)
+- Windows x64 (daemon, CLI, wallet)
+- Android APKs (website app, explorer app)
 
 Running
 -------
