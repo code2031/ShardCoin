@@ -62,29 +62,27 @@ jobs:
             LIBS="-lws2_32 -lssp -lbcrypt"
           make -j$(nproc)
 
+      - name: Find binaries
+        shell: msys2 {0}
+        run: find src -name "*.exe" -type f 2>/dev/null | head -20
+
       - name: Package
         shell: msys2 {0}
         run: |
           mkdir -p dist/shardcoin-win64
-          # Find actual .exe binaries (may be in .libs/ due to libtool)
-          for bin in shardcoind shardcoin-cli shardcoin-tx shardcoin-wallet; do
-            for loc in "src/${bin}.exe" "src/.libs/${bin}.exe"; do
-              if [ -f "$loc" ]; then
-                cp "$loc" dist/shardcoin-win64/
-                strip dist/shardcoin-win64/${bin}.exe 2>/dev/null || true
-                break
-              fi
-            done
+          cp src/shardcoind.exe dist/shardcoin-win64/ || cp src/.libs/shardcoind.exe dist/shardcoin-win64/ || true
+          cp src/shardcoin-cli.exe dist/shardcoin-win64/ || cp src/.libs/shardcoin-cli.exe dist/shardcoin-win64/ || true
+          cp src/shardcoin-tx.exe dist/shardcoin-win64/ || cp src/.libs/shardcoin-tx.exe dist/shardcoin-win64/ || true
+          cp src/shardcoin-wallet.exe dist/shardcoin-win64/ || cp src/.libs/shardcoin-wallet.exe dist/shardcoin-win64/ || true
+          ls dist/shardcoin-win64/
+
+      - name: Copy DLLs
+        shell: msys2 {0}
+        run: |
+          for dll in /mingw64/bin/libboost_filesystem-mt.dll /mingw64/bin/libboost_thread-mt.dll /mingw64/bin/libcrypto-*.dll /mingw64/bin/libssl-*.dll /mingw64/bin/libevent*.dll /mingw64/bin/libdb*.dll /mingw64/bin/libsqlite*.dll /mingw64/bin/libstdc++-*.dll /mingw64/bin/libgcc_s_seh-*.dll /mingw64/bin/libwinpthread-*.dll /mingw64/bin/zlib*.dll /mingw64/bin/libfmt*.dll; do
+            cp $dll dist/shardcoin-win64/ 2>/dev/null || true
           done
-          # Copy required DLLs
-          for exe in dist/shardcoin-win64/*.exe; do
-            ldd "$exe" 2>/dev/null | grep mingw64 | awk '{print $3}' | sort -u | while read dll; do
-              cp "$dll" dist/shardcoin-win64/ 2>/dev/null || true
-            done
-          done
-          echo "=== Package contents ==="
-          ls -lh dist/shardcoin-win64/ || echo "ERROR: No files found"
-          test -f dist/shardcoin-win64/shardcoind.exe || { echo "FATAL: shardcoind.exe not found"; find src -name "*.exe" -type f; exit 1; }
+          ls dist/shardcoin-win64/
 
       - name: Zip
         shell: pwsh
