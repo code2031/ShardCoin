@@ -5,6 +5,7 @@
 #ifndef BITCOIN_AI_OLLAMA_H
 #define BITCOIN_AI_OLLAMA_H
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <memory>
