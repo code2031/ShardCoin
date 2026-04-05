@@ -177,7 +177,7 @@ class _ExplorerState extends State<Explorer> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SelectionArea(child: Scaffold(
       body: Column(children: [
         // HEADER
         Container(
@@ -281,7 +281,7 @@ class _ExplorerState extends State<Explorer> {
           ]),
         ),
       ]),
-    );
+    ));
   }
 
   // ---- WIDGETS ----

@@ -57,7 +57,7 @@ class _ShellState extends State<Shell> {
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.of(context).size.width > 860;
-    return Scaffold(
+    return SelectionArea(child: Scaffold(
       body: Column(children: [
         // NAV
         Container(
@@ -112,7 +112,7 @@ class _ShellState extends State<Shell> {
           BottomNavigationBarItem(icon: Icon(Icons.explore_rounded, size: 20), label: 'Explorer'),
         ],
       ),
-    );
+    ));
   }
 
   Widget _tab(int i) {
