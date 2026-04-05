@@ -37,13 +37,17 @@ class ExplorerApp extends StatelessWidget {
       scaffoldBackgroundColor: C.bg,
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
     ),
-    home: const Explorer(),
+    initialRoute: '/',
+    onGenerateRoute: (settings) {
+      return MaterialPageRoute(builder: (_) => Explorer(route: settings.name ?? '/'), settings: settings);
+    },
   );
 }
 
 // ===== EXPLORER =====
 class Explorer extends StatefulWidget {
-  const Explorer({super.key});
+  final String route;
+  const Explorer({super.key, this.route = '/'});
   @override
   State<Explorer> createState() => _ExplorerState();
 }
@@ -63,12 +67,26 @@ class _ExplorerState extends State<Explorer> {
   // View stack for back navigation
   final List<String> _history = ['home'];
 
+  void _setUrl(String path) {
+    Navigator.of(context).pushReplacementNamed(path);
+  }
+
   @override
   void initState() {
     super.initState();
-    _load();
+    // Parse initial route
+    final r = widget.route;
+    if (r.startsWith('/block/') && r.length > 7) {
+      _loadBlock(r.substring(7));
+    } else if (r.startsWith('/tx/') && r.length > 4) {
+      _loadTx(r.substring(4));
+    } else if (r.startsWith('/address/') && r.length > 9) {
+      _loadAddr(r.substring(9));
+    } else {
+      _load();
+    }
     timer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (blk == null && txn == null) _load();
+      if (blk == null && txn == null && addr == null) _load();
     });
   }
 
@@ -89,11 +107,11 @@ class _ExplorerState extends State<Explorer> {
       if (mounted) setState(() {
         info = json.decode(r1.body);
         blocks = json.decode(r2.body);
-        loading = false; error = null; blk = null; txn = null;
+        loading = false; error = null; blk = null; txn = null; addr = null;
         aiBlockAnalysis = null;
         _history.clear(); _history.add('home');
       });
-      // Auto-fetch AI insights in background
+      if (mounted) _setUrl('/');
       _loadAiInsights();
     } catch (e) {
       if (mounted) setState(() { loading = false; error = 'Could not connect to node'; });
@@ -132,10 +150,12 @@ class _ExplorerState extends State<Explorer> {
     setState(() { loading = true; aiBlockAnalysis = null; });
     try {
       final r = await http.get(Uri.parse('http://node.local:4402/api/block/$h'));
-      if (mounted) setState(() { blk = json.decode(r.body); txn = null; loading = false; _push('block'); });
-      // Auto-fetch AI block analysis
-      if (info?['ai']?['enabled'] == true && info?['ai']?['ollama_connected'] == true) {
-        _loadBlockAi(h);
+      if (mounted) {
+        setState(() { blk = json.decode(r.body); txn = null; addr = null; loading = false; _push('block'); });
+        _setUrl('/block/$h');
+        if (info?['ai']?['enabled'] == true && info?['ai']?['ollama_connected'] == true) {
+          _loadBlockAi(h);
+        }
       }
     } catch (_) { if (mounted) setState(() => loading = false); }
   }
@@ -144,7 +164,7 @@ class _ExplorerState extends State<Explorer> {
     setState(() { loading = true; addr = null; blk = null; txn = null; });
     try {
       final r = await http.get(Uri.parse('http://node.local:4402/api/address/$a'));
-      if (mounted) setState(() { addr = json.decode(r.body); loading = false; _push('addr'); });
+      if (mounted) { setState(() { addr = json.decode(r.body); loading = false; _push('addr'); }); _setUrl('/address/$a'); }
     } catch (_) { if (mounted) setState(() => loading = false); }
   }
 
@@ -152,7 +172,7 @@ class _ExplorerState extends State<Explorer> {
     setState(() => loading = true);
     try {
       final r = await http.get(Uri.parse('http://node.local:4402/api/tx/$id'));
-      if (mounted) setState(() { txn = json.decode(r.body); loading = false; _push('tx'); });
+      if (mounted) { setState(() { txn = json.decode(r.body); loading = false; _push('tx'); }); _setUrl('/tx/$id'); }
     } catch (_) { if (mounted) setState(() => loading = false); }
   }
 

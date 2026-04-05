@@ -38,14 +38,18 @@ class App extends StatelessWidget {
         scaffoldBackgroundColor: C.bg,
         textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
       ),
-      home: const Shell(),
+      initialRoute: '/',
+      onGenerateRoute: (settings) {
+        return MaterialPageRoute(builder: (_) => Shell(route: settings.name ?? '/'), settings: settings);
+      },
     );
   }
 }
 
 // ===== SHELL =====
 class Shell extends StatefulWidget {
-  const Shell({super.key});
+  final String route;
+  const Shell({super.key, this.route = '/'});
   @override
   State<Shell> createState() => _ShellState();
 }
@@ -53,6 +57,19 @@ class Shell extends StatefulWidget {
 class _ShellState extends State<Shell> {
   int tab = 0;
   final tabs = ['Home', 'Technology', 'Download', 'Network', 'Explorer'];
+  final _routes = ['/', '/technology', '/download', '/network', '/explorer'];
+
+  @override
+  void initState() {
+    super.initState();
+    final i = _routes.indexOf(widget.route);
+    if (i >= 0) tab = i;
+  }
+
+  void _switchTab(int i) {
+    _switchTab(i);
+    Navigator.of(context).pushReplacementNamed(_routes[i]);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +84,7 @@ class _ShellState extends State<Shell> {
           child: Row(children: [
             // Logo
             MouseRegion(cursor: SystemMouseCursors.click, child: GestureDetector(
-              onTap: () => setState(() => tab = 0),
+              onTap: () => _switchTab(0),
               child: Row(children: [
                 Container(width: 28, height: 28, decoration: BoxDecoration(borderRadius: BorderRadius.circular(7), gradient: const LinearGradient(colors: [C.purple, C.green])),
                   child: const Center(child: Text('S', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Colors.black)))),
@@ -93,14 +110,14 @@ class _ShellState extends State<Shell> {
         Expanded(child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
           child: KeyedSubtree(key: ValueKey(tab), child: [
-            HomePage(onNav: (i) => setState(() => tab = i)),
+            HomePage(onNav: (i) => _switchTab(i)),
             const TechPage(), const DlPage(), const NetPage(), const ExpPage(),
           ][tab]),
         )),
       ]),
       // Mobile nav
       bottomNavigationBar: wide ? null : BottomNavigationBar(
-        currentIndex: tab, onTap: (i) => setState(() => tab = i),
+        currentIndex: tab, onTap: (i) => _switchTab(i),
         type: BottomNavigationBarType.fixed, backgroundColor: C.bg2,
         selectedItemColor: C.green, unselectedItemColor: C.t3,
         selectedFontSize: 10, unselectedFontSize: 10,
@@ -118,7 +135,7 @@ class _ShellState extends State<Shell> {
   Widget _tab(int i) {
     final on = i == tab;
     return Padding(padding: const EdgeInsets.only(right: 2), child: TextButton(
-      onPressed: () => setState(() => tab = i),
+      onPressed: () => _switchTab(i),
       style: TextButton.styleFrom(
         backgroundColor: on ? C.card2 : Colors.transparent,
         foregroundColor: on ? C.t1 : C.t3,
