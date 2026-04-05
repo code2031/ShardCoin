@@ -57,7 +57,7 @@ jobs:
             CXXFLAGS="-O2" \
             LDFLAGS="-L/mingw64/lib" \
             CPPFLAGS="-I/mingw64/include" \
-            LIBS="-lws2_32 -lssp"
+            LIBS="-lws2_32 -lssp -lbcrypt"
           make -j$(nproc)
 
       - name: Package
