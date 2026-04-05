@@ -48,6 +48,7 @@ jobs:
 
           ./configure \
             --without-gui \
+            --without-miniupnpc \
             --disable-bench \
             --disable-fuzz-binary \
             --with-incompatible-bdb \
