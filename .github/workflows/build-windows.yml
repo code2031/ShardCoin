@@ -72,14 +72,16 @@ jobs:
               strip dist/shardcoin-win64/${bin}.exe
             fi
           done
-          # Copy required DLLs
           for exe in dist/shardcoin-win64/*.exe; do
             ldd "$exe" 2>/dev/null | grep mingw64 | awk '{print $3}' | sort -u | while read dll; do
               cp "$dll" dist/shardcoin-win64/ 2>/dev/null || true
             done
           done
           ls -la dist/shardcoin-win64/
-          cd dist && 7z a -tzip shardcoin-win64.zip shardcoin-win64/
+
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path dist/shardcoin-win64 -DestinationPath dist/shardcoin-win64.zip
 
       - uses: actions/upload-artifact@v4
         with:
