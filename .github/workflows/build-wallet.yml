@@ -1,0 +1,105 @@
+name: Build ShardCoin Wallet
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'wallet_flutter/lib/**'
+      - 'wallet_flutter/pubspec.yaml'
+      - '.github/workflows/build-wallet.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.5'
+          channel: 'stable'
+      - name: Add Android platform
+        working-directory: wallet_flutter
+        run: flutter create --platforms android .
+      - name: Configure Android app
+        working-directory: wallet_flutter
+        run: |
+          sed -i '2i\    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
+          sed -i 's/android:label="shardcoin_wallet"/android:label="ShardCoin Wallet"/' android/app/src/main/AndroidManifest.xml
+      - name: Build APK
+        working-directory: wallet_flutter
+        run: flutter build apk --release
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShardCoinWallet.apk
+          path: wallet_flutter/build/app/outputs/flutter-apk/app-release.apk
+      - name: Upload to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp wallet_flutter/build/app/outputs/flutter-apk/app-release.apk ShardCoinWallet.apk
+          gh release upload v0.1.0 ShardCoinWallet.apk --clobber
+
+  build-linux:
+    name: Linux x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux dependencies
+        run: sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.5'
+          channel: 'stable'
+      - name: Build Linux
+        working-directory: wallet_flutter
+        run: flutter build linux --release
+      - name: Package
+        run: |
+          cd wallet_flutter/build/linux/x64/release/bundle
+          tar -czf /tmp/ShardCoinWallet-linux-x86_64.tar.gz .
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShardCoinWallet-linux-x86_64
+          path: /tmp/ShardCoinWallet-linux-x86_64.tar.gz
+      - name: Upload to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload v0.1.0 /tmp/ShardCoinWallet-linux-x86_64.tar.gz --clobber
+
+  build-windows:
+    name: Windows EXE
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.5'
+          channel: 'stable'
+      - name: Build Windows
+        working-directory: wallet_flutter
+        run: flutter build windows --release
+      - name: Package
+        shell: pwsh
+        run: |
+          Compress-Archive -Path wallet_flutter/build/windows/x64/runner/Release/* -DestinationPath ShardCoinWallet-win64.zip
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShardCoinWallet-win64
+          path: ShardCoinWallet-win64.zip
+      - name: Upload to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release upload v0.1.0 ShardCoinWallet-win64.zip --clobber
