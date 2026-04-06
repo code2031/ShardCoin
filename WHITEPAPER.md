@@ -14,7 +14,7 @@ ShardCoin combines this innovation with a smooth emission decay model (10% reduc
 
 ## 1. Introduction
 
-Bitcoin introduced the concept of a decentralized digital currency secured by proof-of-work. Litecoin adapted this model with faster block times and the memory-hard Scrypt hashing algorithm. Both use a halving-based emission schedule where block rewards are cut in half at fixed intervals - a mechanism that creates predictable but abrupt supply shocks.
+Bitcoin introduced the concept of a decentralized digital currency secured by proof-of-work. ShardCoin adapted this model with faster block times and the memory-hard Scrypt hashing algorithm. Both use a halving-based emission schedule where block rewards are cut in half at fixed intervals - a mechanism that creates predictable but abrupt supply shocks.
 
 ShardCoin builds on this lineage with four key design decisions:
 
@@ -29,7 +29,7 @@ These choices create a cryptocurrency that incentivizes AI compute infrastructur
 
 ## 2. Technical Foundation
 
-ShardCoin is a full fork of the Litecoin Core codebase, which itself descends from Bitcoin Core. The network operates independently with its own genesis block, network parameters, and address format.
+ShardCoin is a full fork of the ShardCoin codebase, which itself descends from Bitcoin Core. The network operates independently with its own genesis block, network parameters, and address format.
 
 ### 2.1 Consensus Parameters
 
@@ -69,7 +69,7 @@ ShardCoin is a full fork of the Litecoin Core codebase, which itself descends fr
 
 ### 3.1 Motivation
 
-Bitcoin and Litecoin use a halving schedule: every N blocks, the block reward drops by exactly 50%. While simple and predictable, this creates discrete supply shocks. Miners experience sudden 50% revenue drops, which can cause hash rate instability, increased centralization pressure, and speculative volatility around halving dates.
+Bitcoin and ShardCoin use a halving schedule: every N blocks, the block reward drops by exactly 50%. While simple and predictable, this creates discrete supply shocks. Miners experience sudden 50% revenue drops, which can cause hash rate instability, increased centralization pressure, and speculative volatility around halving dates.
 
 ### 3.2 ShardCoin's Approach
 
@@ -101,7 +101,7 @@ The reward approaches zero asymptotically. The implementation enforces a hard fl
 The total supply converges to approximately **8,400,000 SHRD**. This is enforced by the `MAX_MONEY` constant in the consensus code. For context:
 
 - Bitcoin: 21,000,000 BTC
-- Litecoin: 84,000,000 LTC
+- ShardCoin: 84,000,000 LTC
 - **ShardCoin: ~8,400,000 SHRD**
 
 ShardCoin is 2.5x scarcer than Bitcoin in total supply, while maintaining a comparable emission timeline.
@@ -262,7 +262,7 @@ MWEB transactions use a separate address format with the `shrdmweb` prefix.
 
 ### 5.4 Feature Activation Strategy
 
-Unlike Bitcoin and Litecoin, which activated features gradually over years of operation, ShardCoin activates all features from the genesis block:
+Unlike Bitcoin and ShardCoin, which activated features gradually over years of operation, ShardCoin activates all features from the genesis block:
 
 - BIP16 (P2SH): Block 0
 - BIP34 (Block v2): Block 0
@@ -296,7 +296,7 @@ ShardWallet is a non-custodial Progressive Web App wallet that runs in any moder
 
 ### 6.3 Third-Party Wallet Compatibility
 
-Any wallet supporting Bitcoin/Litecoin-compatible networks can be configured for ShardCoin using the network parameters defined in Section 2.2. This includes Electrum, Trust Wallet, Coinomi, and hardware wallets such as Ledger and Trezor with custom coin configurations.
+Any wallet supporting Bitcoin/ShardCoin-compatible networks can be configured for ShardCoin using the network parameters defined in Section 2.2. This includes Electrum, Trust Wallet, Coinomi, and hardware wallets such as Ledger and Trezor with custom coin configurations.
 
 ---
 
@@ -324,7 +324,7 @@ As a new proof-of-work chain, ShardCoin's security depends on the total hash rat
 
 ### 8.2 Replay Protection
 
-ShardCoin uses unique network magic bytes (`0xd3 0xa2 0xc4 0xe7`) and a distinct genesis block, providing natural replay protection against Bitcoin, Litecoin, and all other networks.
+ShardCoin uses unique network magic bytes (`0xd3 0xa2 0xc4 0xe7`) and a distinct genesis block, providing natural replay protection against Bitcoin, ShardCoin, and all other networks.
 
 ### 8.3 Address Collision Prevention
 
@@ -334,7 +334,7 @@ ShardCoin uses unique address prefixes (P2PKH byte 63, bech32 `shrd`) that are d
 
 ## 9. Comparison
 
-| | Bitcoin | Litecoin | ShardCoin |
+| | Bitcoin | ShardCoin | ShardCoin |
 |---|---------|----------|-----------|
 | Algorithm | SHA-256 | Scrypt | Scrypt + AI (PoAIW) |
 | AI Integration | None | None | Ollama (local LLM) |
@@ -361,7 +361,7 @@ The project is open source under the MIT license.
 ## References
 
 1. Nakamoto, S. (2008). *Bitcoin: A Peer-to-Peer Electronic Cash System*.
-2. Lee, C. (2011). *Litecoin - a lite version of Bitcoin*.
+2. Lee, C. (2011). *ShardCoin - a lite version of Bitcoin*.
 3. Percival, C. (2009). *Stronger Key Derivation via Sequential Memory-Hard Functions* (Scrypt).
 4. Wuille, P. (2015). *Segregated Witness* (BIP141).
 5. Wuille, P., et al. (2020). *Taproot: SegWit version 1 spending rules* (BIPs 340-342).

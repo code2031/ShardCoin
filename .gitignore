@@ -2,13 +2,13 @@
 
 *.exe
 *.pdb
-src/litecoin
-src/litecoind
-src/litecoin-cli
-src/litecoin-gui
-src/litecoin-node
-src/litecoin-tx
-src/litecoin-wallet
+src/shardcoin
+src/shardcoind
+src/shardcoin-cli
+src/shardcoin-gui
+src/shardcoin-node
+src/shardcoin-tx
+src/shardcoin-wallet
 src/shardcoin
 src/shardcoind
 src/shardcoin-cli
@@ -18,9 +18,9 @@ src/shardcoin-tx
 src/shardcoin-wallet
 src/test/fuzz/*
 !src/test/fuzz/*.*
-src/test/test_litecoin
 src/test/test_shardcoin
-src/qt/test/test_litecoin-qt
+src/test/test_shardcoin
+src/qt/test/test_shardcoin-qt
 src/qt/test/test_shardcoin-qt
 
 # autoreconf
@@ -103,9 +103,9 @@ src/qt/bitcoin-qt.includes
 *.qm
 Makefile
 !depends/Makefile
-src/qt/litecoin-qt
 src/qt/shardcoin-qt
-Litecoin-Qt.app
+src/qt/shardcoin-qt
+ShardCoin-Qt.app
 ShardCoin-Qt.app
 background.tiff*
 
@@ -114,7 +114,7 @@ Makefile.am.user
 
 # Unit-tests
 Makefile.test
-litecoin-qt_test
+shardcoin-qt_test
 
 # Resources cpp
 qrc_*.cpp
@@ -129,7 +129,7 @@ releases
 *.gcno
 *.gcda
 /*.info
-test_litecoin.coverage/
+test_shardcoin.coverage/
 total.coverage/
 fuzz.coverage/
 coverage_percent.txt

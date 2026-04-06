@@ -400,7 +400,7 @@ class DlPage extends StatelessWidget {
       for (final d in [
         ('ShardCoin Core', 'Full node, CLI, tx tool, wallet utility.\nLinux aarch64. AI PoW included.', 'Download v0.1.0', true, C.purple),
         ('ShardWallet', 'Non-custodial PWA wallet.\nBIP39, client-side signing, any browser.', 'View on GitHub', false, C.green),
-        ('Source Code', 'Build from source. Litecoin Core fork\nwith AI PoW and all features from genesis.', 'View on GitHub', false, C.blue),
+        ('Source Code', 'Build from source. ShardCoin fork\nwith AI PoW and all features from genesis.', 'View on GitHub', false, C.blue),
       ])
         Container(
           padding: const EdgeInsets.all(24),

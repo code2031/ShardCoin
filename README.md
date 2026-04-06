@@ -6,7 +6,7 @@ What is ShardCoin?
 
 ShardCoin (SHRD) is the first AI-native cryptocurrency. It integrates local AI inference directly into the mining process via [Ollama](https://ollama.com), requiring miners to perform AI computation for every block they produce. Each block carries a cryptographic proof of AI work embedded in the coinbase transaction.
 
-Built on the proven Litecoin/Bitcoin Core architecture, ShardCoin uses Scrypt proof-of-work augmented with AI Proof-of-Work (PoAIW). It includes MWEB (Mimblewimble Extension Blocks) for optional privacy, Taproot for smart contracts, and full SegWit support - all activated from block 0.
+Built on the proven ShardCoin/Bitcoin Core architecture, ShardCoin uses Scrypt proof-of-work augmented with AI Proof-of-Work (PoAIW). It includes MWEB (Mimblewimble Extension Blocks) for optional privacy, Taproot for smart contracts, and full SegWit support - all activated from block 0.
 
 ### Key Parameters
 
@@ -265,7 +265,7 @@ test/lint/lint-all.sh
 Compatible Wallets
 ------------------
 
-Any wallet that supports Bitcoin/Litecoin-compatible networks can be used with ShardCoin by configuring these parameters:
+Any wallet that supports Bitcoin/ShardCoin-compatible networks can be used with ShardCoin by configuring these parameters:
 
 | Parameter | Value |
 |-----------|-------|
@@ -284,7 +284,7 @@ Any wallet that supports Bitcoin/Litecoin-compatible networks can be used with S
 **Compatible wallet software:**
 - **Electrum** - add ShardCoin as a custom network (fork Electrum-LTC and change parameters)
 - **Trust Wallet / Coinomi** - support custom coin configurations
-- **Any Bitcoin/Litecoin-compatible hardware wallet** (Ledger, Trezor) - with custom app or coin config
+- **Any Bitcoin/ShardCoin-compatible hardware wallet** (Ledger, Trezor) - with custom app or coin config
 - **ShardWallet** - our official PWA wallet ([github.com/code2031/ShardWallet](https://github.com/code2031/ShardWallet))
 - **shardcoin-qt** - built-in GUI desktop wallet (included with ShardCoin Core)
 
@@ -293,7 +293,7 @@ For RPC-compatible wallets, point them at `http://127.0.0.1:7332` with your conf
 Development
 -----------
 
-ShardCoin Core is a fork of Litecoin Core, which is itself a fork of Bitcoin Core. The codebase follows Bitcoin Core's architecture and coding conventions. See [doc/developer-notes.md](doc/developer-notes.md) for development guidelines.
+ShardCoin Core is a fork of ShardCoin, which is itself a fork of Bitcoin Core. The codebase follows Bitcoin Core's architecture and coding conventions. See [doc/developer-notes.md](doc/developer-notes.md) for development guidelines.
 
 ### Adding Seed Nodes
 

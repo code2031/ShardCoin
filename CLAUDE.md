@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ShardCoin is an AI-native cryptocurrency forked from Litecoin Core (which itself is a fork of Bitcoin Core). It uses Scrypt proof-of-work augmented with AI Proof-of-Work (PoAIW) via Ollama, 2.5 minute block times, ~8.4M total supply (5 SHRD block reward with 10% decay every 100k blocks), and the ticker SHRD. The genesis block auto-mines on first run.
+ShardCoin is an AI-native cryptocurrency (originally forked from Litecoin Core, which is itself a fork of Bitcoin Core). It uses Scrypt proof-of-work augmented with AI Proof-of-Work (PoAIW) via Ollama, 2.5 minute block times, ~8.4M total supply (5 SHRD block reward with 10% decay every 100k blocks), and the ticker SHRD. The genesis block auto-mines on first run.
 
 ## Build Commands
 
@@ -257,7 +257,7 @@ if __name__ == '__main__':
     MyTest().main()
 ```
 
-## ShardCoin-Specific Changes from Litecoin
+## ShardCoin-Specific Changes from Upstream
 
 - Currency unit: SHRD (defined in `src/policy/feerate.h` as `CURRENCY_UNIT`)
 - Address prefix: `S` for mainnet (base58 prefix 63), bech32 `shrd`
