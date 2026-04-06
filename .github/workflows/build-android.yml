@@ -33,10 +33,17 @@ jobs:
       - name: Build APK
         working-directory: website_flutter
         run: flutter build apk --release
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: ShardCoin-Website.apk
           path: website_flutter/build/app/outputs/flutter-apk/app-release.apk
+      - name: Upload to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp website_flutter/build/app/outputs/flutter-apk/app-release.apk ShardCoin.apk
+          gh release upload v0.1.0 ShardCoin.apk --clobber
 
   build-explorer:
     name: ShardCoin Explorer APK
@@ -63,7 +70,14 @@ jobs:
       - name: Build APK
         working-directory: explorer_flutter
         run: flutter build apk --release
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: ShardCoin-Explorer.apk
           path: explorer_flutter/build/app/outputs/flutter-apk/app-release.apk
+      - name: Upload to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp explorer_flutter/build/app/outputs/flutter-apk/app-release.apk ShardCoinExplorer.apk
+          gh release upload v0.1.0 ShardCoinExplorer.apk --clobber
